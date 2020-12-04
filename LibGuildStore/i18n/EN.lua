@@ -1,0 +1,6 @@
+﻿ZO_CreateStringId("GS_COLOR_WHITE", "white")
+ZO_CreateStringId("GS_COLOR_GREEN", "green")
+ZO_CreateStringId("GS_COLOR_BLUE", "blue")
+ZO_CreateStringId("GS_COLOR_PURPLE", "purple")
+ZO_CreateStringId("GS_COLOR_GOLD", "gold")
+ZO_CreateStringId("GS_COLOR_ORANGE", "orange")
