@@ -33,6 +33,7 @@ local function Initilizze()
     AwesomeGuildStore:RegisterCallback(AwesomeGuildStore.callback.ITEM_DATABASE_UPDATE, function(itemDatabase, guildId, hasAnyResultAlreadyStored)
       internal.guildStoreSearchResults = itemDatabase
       local allData = itemDatabase.data
+      internal:processAwesomeGuildStore(allData)
       --[[
       local CurrentPurchase = {}
       CurrentPurchase.ItemLink = itemData.itemLink

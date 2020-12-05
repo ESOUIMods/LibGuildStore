@@ -490,3 +490,34 @@ function internal:onTradingHouseEvent(eventCode, slotId, isPending)
     --ShoppingList.List:Refresh()
   end
 end
+
+function internal:AddAwesomeGuildStoreListing(listing)
+  internal.dm("Debug", listing)
+end
+
+function internal:processAwesomeGuildStore(itemDatabase)
+    local guildCounts = {}
+    for guildIndex, guildData in pairs(itemDatabase) do
+      local guildName = GetGuildName(guildIndex)
+      guildCounts[guildName] = internal:NonContiguousNonNilCount(itemDatabase[guildIndex])
+      for dataIndex, listingData in pairs(guildData) do
+        local index = Id64ToString(dataIndex)
+        internal.dm("Debug", index)
+        internal:AddAwesomeGuildStoreListing(listingData)
+        break
+      end
+    end
+    --[[
+    local icon, itemName, displayQuality, quantity, seller, timeRemaining, price, currencyType, itemUniqueId, purchasePricePerUnit = GetTradingHouseSearchResultItemInfo(slotId)
+    local guildId, guild, guildAlliance = GetCurrentTradingHouseGuildDetails()
+    CurrentPurchase.ItemLink = GetTradingHouseSearchResultItemLink(slotId)
+    CurrentPurchase.Quantity = quantity
+    CurrentPurchase.Price = price
+    CurrentPurchase.Seller = seller:gsub("|c.-$", "")
+    CurrentPurchase.Guild = guild
+    CurrentPurchase.itemUniqueId = Id64ToString(itemUniqueId)
+    CurrentPurchase.TimeStamp = GetTimeStamp()
+    internal:addPurchase(ShoppingList.CurrentPurchase)
+    ]]--
+    --ShoppingList.List:Refresh()
+end
