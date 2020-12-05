@@ -3,7 +3,7 @@ local lib = {}
 lib.libName = libName
  
 local function Initialize()
-  if not GS09DataSavedVariables then GS09DataSavedVariables = {} end
+  if not GS09DataSavedVariables then GS09DataSavedVariables = { ['data'] = {} } end
   lib['data'] = GS09DataSavedVariables
 end
  

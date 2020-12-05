@@ -73,6 +73,27 @@ function internal:is_in(search_value, search_table)
     return false
 end
 
+function internal:is_empty_or_nil(t)
+  if not t then return true end
+  if type(t) == "table" then
+    if next(t) == nil then
+      return true
+    else
+      return false
+    end
+  elseif type(t) == "string" then
+    if t == nil then
+      return true
+    elseif t == "" then
+      return true
+    else
+      return false
+    end
+  elseif type(t) == "nil" then
+    return true
+  end
+end
+
 internal.saveVarsDefaults = {
   lastReceivedEventID = {},
 }
@@ -84,3 +105,7 @@ internal.guildMemberInfo = { }
 internal.accountNameByIdLookup = { }
 internal.itemLinkNameByIdLookup = { }
 internal.guildNameByIdLookup = { }
+
+internal.GS_CHECK_ACCOUNTNAME = "AccountNames"
+internal.GS_CHECK_ITEMLINK = "ItemLink"
+internal.GS_CHECK_GUILDNAME = "GuildNames"

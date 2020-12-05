@@ -1,14 +1,17 @@
 local libName, libVersion = "GS16Data", 100
 local lib = {}
 lib.libName = libName
+lib.defaults = {
+  ["ItemLink"] = {},
+  ["AccountNames"] = {},
+  ["GuildNames"] = {},
+}
 
 local function Initialize()
-  if not GS16DataSavedVariables then GS16DataSavedVariables = {} end
+  if not GS16DataSavedVariables then
+    GS16DataSavedVariables = lib.defaults
+  end
   lib['data'] = GS16DataSavedVariables
-  lib['data']["ItemLink"] = {}
-  lib['data']["AccountNames"] = {}
-  lib['data']["GuildNames"] = {}
-
 end
 
 local function OnAddOnLoaded(eventCode, addonName)

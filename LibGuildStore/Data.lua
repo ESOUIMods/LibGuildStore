@@ -15,6 +15,29 @@ function internal.concat(a, ...)
   end
 end
 
+function internal:GetIndexByString(key, stringName)
+  if internal:is_empty_or_nil(GS16DataSavedVariables[key]) then return nil end
+  if GS16DataSavedVariables[key] and GS16DataSavedVariables[key][stringName] then
+    return GS16DataSavedVariables[key][stringName]
+  end
+  return nil
+end
+
+function internal:GetStringByIndex(key, index)
+    if key == internal.GS_CHECK_ACCOUNTNAME then
+      if internal:is_empty_or_nil(internal.accountNameByIdLookup[index]) then return nil end
+      return internal.accountNameByIdLookup[index]
+    end
+    if key == internal.GS_CHECK_ITEMLINK then
+      if internal:is_empty_or_nil(internal.itemLinkNameByIdLookup[index]) then return nil end
+      return internal.itemLinkNameByIdLookup[index]
+    end
+    if key == internal.GS_CHECK_GUILDNAME then
+      if internal:is_empty_or_nil(internal.guildNameByIdLookup[index]) then return nil end
+      return internal.guildNameByIdLookup[index]
+    end
+end
+
 function internal:NonContiguousNonNilCount(tableObject)
   local count = 0
 
@@ -165,32 +188,29 @@ function internal:BuildGuildNameLookup()
 end
 
 function internal:InitSalesData(hash, theIID)
-  local dataTable = _G[string.format("GS%02dData", hash)]
+  local dataTable = _G[string.format("GS%02dDataSavedVariables", hash)]
   local savedVars = dataTable['data']
   savedVars[theIID] = {}
   return savedVars
 end
 
 function internal:SetSalesData(hash)
-  local dataTable = _G[string.format("GS%02dData", hash)]
+  local dataTable = _G[string.format("GS%02dDataSavedVariables", hash)]
   local savedVars = dataTable['data']
   return savedVars
 end
 
 function internal:setSalesTableData(key)
   local savedVars = GS16DataSavedVariables
-  local lookupData = savedVars
-  lookupData[key] = {}
-  return lookupData[key]
+  local lookupData = savedVars[key]
+  return lookupData
 end
 
 function internal:AddSalesTableData(key, value)
-  if not GS16DataSavedVariables[key] then
-    GS16DataSavedVariables[key] = internal:setSalesTableData(key)
-  end
-  if not GS16DataSavedVariables[key][value] then
+  local saveData = GS16DataSavedVariables[key]
+  if not saveData[value] then
     local index = internal:NonContiguousNonNilCount(GS16DataSavedVariables[key]) + 1
-    GS16DataSavedVariables[key][value] = index
+    saveData[value] = index
     if key == "AccountNames" then
       internal.accountNameByIdLookup[index] = value
     end
@@ -201,8 +221,9 @@ function internal:AddSalesTableData(key, value)
       internal.guildNameByIdLookup[index] = value
     end
     return index
+  else
+    return saveData[value]
   end
-  return nil
 end
 
 function internal:CheckForDuplicate(itemLink, eventID)
@@ -210,6 +231,13 @@ function internal:CheckForDuplicate(itemLink, eventID)
   --[[ we need to be able to calculate theIID and itemIndex
   when not used with addToHistoryTables() event though
   the function will calculate them.
+  ]]--
+  --[[
+  local indexUse = internal:GetIndexByString(key, itemLink)
+  local itemLinkToUse = internal:GetStringByIndex(key, indexUse)
+  if not itemLinkToUse then
+    itemLinkToUse = itemLink
+  end
   ]]--
   local theIID = GetItemLinkItemId(itemLink)
   if theIID == nil then return end
@@ -229,8 +257,7 @@ function internal:CheckForDuplicate(itemLink, eventID)
 end
 
 -- And here we add a new item
-function internal:addToHistoryTables(theEvent)
-
+function internal:addToHistoryTables(theEvent, linkHash, buyerHash, sellerHash, guildHash)
   -- DEBUG  Stop Adding
   --do return end
 
@@ -271,12 +298,6 @@ function internal:addToHistoryTables(theEvent)
   },
   ]]--
 
-  -- first add new data looks to their tables
-  local linkHash = internal:AddSalesTableData("ItemLink", theEvent.itemLink)
-  local buyerHash = internal:AddSalesTableData("AccountNames", theEvent.buyer)
-  local sellerHash = internal:AddSalesTableData("AccountNames", theEvent.seller)
-  local guildHash = internal:AddSalesTableData("GuildNames", theEvent.guild)
-
   --[[The quality effects itemIndex although the ID from the
   itemLink may be the same. We will keep them separate.
   ]]--
@@ -300,15 +321,21 @@ function internal:addToHistoryTables(theEvent)
   local searchItemDesc = ""
   local searchItemAdderText = ""
 
+  local newEvent = ZO_DeepTableCopy(theEvent)
+  newEvent.itemLink = linkHash
+  newEvent.buyer = buyerHash
+  newEvent.seller = sellerHash
+  newEvent.guild = guildHash
+
   if saveData[theIID][itemIndex] then
     local nextLocation = #saveData[theIID][itemIndex]['sales'] + 1
     searchItemDesc = saveData[theIID][itemIndex].itemDesc
     searchItemAdderText = saveData[theIID][itemIndex].itemAdderText
     if saveData[theIID][itemIndex]['sales'][nextLocation] == nil then
-      table.insert(saveData[theIID][itemIndex]['sales'], nextLocation, theEvent)
+      table.insert(saveData[theIID][itemIndex]['sales'], nextLocation, newEvent)
       insertedIndex = nextLocation
     else
-      table.insert(saveData[theIID][itemIndex]['sales'], theEvent)
+      table.insert(saveData[theIID][itemIndex]['sales'], newEvent)
       insertedIndex = #saveData[theIID][itemIndex]['sales']
     end
   else
@@ -318,7 +345,8 @@ function internal:addToHistoryTables(theEvent)
       itemIcon      = GetItemLinkInfo(theEvent.itemLink),
       itemAdderText = searchItemAdderText,
       itemDesc      = searchItemDesc,
-      sales         = { theEvent } }
+      sales         = { newEvent } }
+    --internal.dm("Debug", newEvent)
   end
 end
 
@@ -388,11 +416,15 @@ function internal:SetupListener(guildID)
         id        = Id64ToString(eventId)
       }
       theEvent.wasKiosk = (internal.guildMemberInfo[guildID][string.lower(theEvent.buyer)] == nil)
+      local linkHash = internal:AddSalesTableData("ItemLink", theEvent.itemLink)
+      local buyerHash = internal:AddSalesTableData("AccountNames", theEvent.buyer)
+      local sellerHash = internal:AddSalesTableData("AccountNames", theEvent.seller)
+      local guildHash = internal:AddSalesTableData("GuildNames", theEvent.guild)
 
       local isDuplicate = internal:CheckForDuplicate(theEvent.itemLink, theEvent.id)
 
       if not isDuplicate then
-        internal:addToHistoryTables(theEvent)
+        internal:addToHistoryTables(theEvent, linkHash, buyerHash, sellerHash, guildHash)
       end
       -- (doAlert and (internal.systemSavedVariables.showChatAlerts or internal.systemSavedVariables.showAnnounceAlerts))
       if not isDuplicate and string.lower(theEvent.seller) == thePlayer then
