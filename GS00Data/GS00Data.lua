@@ -1,10 +1,10 @@
 local libName, libVersion = "GS00Data", 100
 local lib = {}
 lib.libName = libName
+lib.defaults = { ['data'] = {} }
 
 local function Initialize()
-  if not GS00DataSavedVariables then GS00DataSavedVariables = { ['data'] = {} } end
-  lib['data'] = GS00DataSavedVariables
+  if not GS00DataSavedVariables then GS00DataSavedVariables = lib.defaults end
 end
 
 local function OnAddOnLoaded(eventCode, addonName)

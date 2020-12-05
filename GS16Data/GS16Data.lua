@@ -8,10 +8,7 @@ lib.defaults = {
 }
 
 local function Initialize()
-  if not GS16DataSavedVariables then
-    GS16DataSavedVariables = lib.defaults
-  end
-  lib['data'] = GS16DataSavedVariables
+  if not GS16DataSavedVariables then GS16DataSavedVariables = lib.defaults end
 end
 
 local function OnAddOnLoaded(eventCode, addonName)

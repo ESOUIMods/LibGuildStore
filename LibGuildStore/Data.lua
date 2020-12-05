@@ -226,6 +226,17 @@ function internal:AddSalesTableData(key, value)
   end
 end
 
+function internal:CheckForDuplicatePurchase(purchasesData, itemUniqueId)
+  local dupe = false
+  for k, v in pairs(purchasesData) do
+    if v.itemUniqueId == itemUniqueId then
+      dupe = true
+      break
+    end
+  end
+  return dupe
+end
+
 function internal:CheckForDuplicate(itemLink, eventID)
   local dupe = false
   --[[ we need to be able to calculate theIID and itemIndex
@@ -244,6 +255,8 @@ function internal:CheckForDuplicate(itemLink, eventID)
   local itemIndex = internal:MakeIndexFromLink(itemLink)
   local hash = internal:MakeHashString(itemLink)
   local saveData = internal:SetSalesData(hash)
+  if internal:is_empty_or_nil(saveData) then return dupe end
+  if internal:is_empty_or_nil(saveData[theIID]) then return dupe end
 
   if saveData[theIID] and saveData[theIID][itemIndex] then
     for k, v in pairs(saveData[theIID][itemIndex]) do
@@ -437,4 +450,43 @@ function internal:SetupListener(guildID)
     end
   end)
   internal.LibHistoireListener[guildID]:Start()
+end
+
+function internal:addPurchase(purchase)
+  local linkHash = internal:AddSalesTableData("ItemLink", purchase.ItemLink)
+  local buyerHash = internal:AddSalesTableData("AccountNames", GetDisplayName())
+  local sellerHash = internal:AddSalesTableData("AccountNames", purchase.Seller)
+  local guildHash = internal:AddSalesTableData("GuildNames", purchase.Guild)
+  local saveData = GS17DataSavedVariables["purchases"]
+
+  local duplicate = internal:CheckForDuplicatePurchase(saveData, itemUniqueId)
+  if not duplicate then
+    table.insert(saveData, {
+      Buyer = buyerHash, -- yourself
+      Seller = sellerHash, -- who listed the item
+      ItemLink = linkHash,
+      Quantity = purchase.Quantity,
+      Price = purchase.Price,
+      Guild = guildHash,
+      TimeStamp = purchase.TimeStamp,
+      itemUniqueId = purchase.itemUniqueId,
+    })
+  end
+end
+
+function internal:onTradingHouseEvent(eventCode, slotId, isPending)
+  if not AwesomeGuildStore then
+    local CurrentPurchase = {}
+    local icon, itemName, displayQuality, quantity, seller, timeRemaining, price, currencyType, itemUniqueId, purchasePricePerUnit = GetTradingHouseSearchResultItemInfo(slotId)
+    local guildId, guild, guildAlliance = GetCurrentTradingHouseGuildDetails()
+    CurrentPurchase.ItemLink = GetTradingHouseSearchResultItemLink(slotId)
+    CurrentPurchase.Quantity = quantity
+    CurrentPurchase.Price = price
+    CurrentPurchase.Seller = seller:gsub("|c.-$", "")
+    CurrentPurchase.Guild = guild
+    CurrentPurchase.itemUniqueId = Id64ToString(itemUniqueId)
+    CurrentPurchase.TimeStamp = GetTimeStamp()
+    internal:addPurchase(ShoppingList.CurrentPurchase)
+    --ShoppingList.List:Refresh()
+  end
 end

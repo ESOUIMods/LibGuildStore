@@ -105,6 +105,7 @@ internal.guildMemberInfo = { }
 internal.accountNameByIdLookup = { }
 internal.itemLinkNameByIdLookup = { }
 internal.guildNameByIdLookup = { }
+internal.guildStoreSearchResults = { }
 
 internal.GS_CHECK_ACCOUNTNAME = "AccountNames"
 internal.GS_CHECK_ITEMLINK = "ItemLink"
