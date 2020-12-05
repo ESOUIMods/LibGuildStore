@@ -492,7 +492,7 @@ function internal:onTradingHouseEvent(eventCode, slotId, isPending)
 end
 
 function internal:AddAwesomeGuildStoreListing(listing)
-  internal.dm("Debug", listing)
+  --internal.dm("Debug", listing)
 end
 
 function internal:processAwesomeGuildStore(itemDatabase)
@@ -502,7 +502,7 @@ function internal:processAwesomeGuildStore(itemDatabase)
       guildCounts[guildName] = internal:NonContiguousNonNilCount(itemDatabase[guildIndex])
       for dataIndex, listingData in pairs(guildData) do
         local index = Id64ToString(dataIndex)
-        internal.dm("Debug", index)
+        --internal.dm("Debug", index)
         internal:AddAwesomeGuildStoreListing(listingData)
         break
       end
