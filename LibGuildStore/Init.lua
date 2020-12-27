@@ -108,7 +108,13 @@ internal.guildNameByIdLookup = { }
 internal.guildStoreSearchResults = { }
 internal.guildStoreSales = { } -- holds all sales
 internal.guildStoreListings = { } -- holds all listings
+internal.verboseLevel = 4
+internal.eventsNeedProcessing   = {}
+internal.timeEstimated          = {}
 
 internal.GS_CHECK_ACCOUNTNAME = "AccountNames"
 internal.GS_CHECK_ITEMLINK = "ItemLink"
 internal.GS_CHECK_GUILDNAME = "GuildNames"
+
+LibGuildStore.guildStoreReady = false -- when no more events are pending
+

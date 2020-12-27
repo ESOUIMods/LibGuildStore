@@ -15,6 +15,19 @@ function internal.concat(a, ...)
   end
 end
 
+function internal.concatHash(a, ...)
+  if a == nil and ... == nil then
+    return ''
+  elseif a == nil then
+    return internal.concat(...)
+  else
+    if type(a) == 'boolean' then
+      --d(tostring(a) .. ' ' .. internal.concat(...))
+    end
+    return tostring(a) .. ' ' .. internal.concat(...)
+  end
+end
+
 function internal:GetIndexByString(key, stringName)
   if internal:is_empty_or_nil(GS16DataSavedVariables[key]) then return nil end
   if GS16DataSavedVariables[key] and GS16DataSavedVariables[key][stringName] then
@@ -55,6 +68,18 @@ function internal:MakeHashString(itemLink)
   return hash
 end
 
+local function GetLevelAndCPRequirementFromItemLink(itemLink)
+    local link = {ZO_LinkHandler_ParseLink(itemLink)}
+    return tonumber(link[5]), tonumber(link[6])
+end
+
+local function GetPotionPowerLevel(itemLink)
+    local CP, level = GetLevelAndCPRequirementFromItemLink(itemLink)
+    if level < 50 then
+        return level
+    end
+    return CP
+end
 -- The index consists of the item's required level, required vet
 -- level, quality, and trait(if any), separated by colons.
 function internal:MakeIndexFromLink(itemLink)
@@ -172,20 +197,20 @@ function internal:AddSearchToItem(itemLink)
 end
 
 function internal:BuildAccountNameLookup()
-  if not GS16DataSavedVariables["AccountNames"] then GS16DataSavedVariables["AccountNames"] = {} end
-  for key, value in pairs(GS16DataSavedVariables["AccountNames"]) do
+  if not GS16DataSavedVariables["accountNames"] then GS16DataSavedVariables["accountNames"] = {} end
+  for key, value in pairs(GS16DataSavedVariables["accountNames"]) do
     internal.accountNameByIdLookup[value] = key
   end
 end
 function internal:BuildItemLinkNameLookup()
-  if not GS16DataSavedVariables["ItemLink"] then GS16DataSavedVariables["ItemLink"] = {} end
-  for key, value in pairs(GS16DataSavedVariables["ItemLink"]) do
+  if not GS16DataSavedVariables["itemLink"] then GS16DataSavedVariables["itemLink"] = {} end
+  for key, value in pairs(GS16DataSavedVariables["itemLink"]) do
     internal.itemLinkNameByIdLookup[value] = key
   end
 end
 function internal:BuildGuildNameLookup()
-  if not GS16DataSavedVariables["GuildNames"] then GS16DataSavedVariables["GuildNames"] = {} end
-  for key, value in pairs(GS16DataSavedVariables["GuildNames"]) do
+  if not GS16DataSavedVariables["guildNames"] then GS16DataSavedVariables["guildNames"] = {} end
+  for key, value in pairs(GS16DataSavedVariables["guildNames"]) do
     internal.guildNameByIdLookup[value] = key
   end
 end
@@ -214,13 +239,13 @@ function internal:AddSalesTableData(key, value)
   if not saveData[value] then
     local index = internal:NonContiguousNonNilCount(GS16DataSavedVariables[key]) + 1
     saveData[value] = index
-    if key == "AccountNames" then
+    if key == "accountNames" then
       internal.accountNameByIdLookup[index] = value
     end
-    if key == "ItemLink" then
+    if key == "itemLink" then
       internal.itemLinkNameByIdLookup[index] = value
     end
-    if key == "GuildNames" then
+    if key == "guildNames" then
       internal.guildNameByIdLookup[index] = value
     end
     return index
@@ -229,10 +254,11 @@ function internal:AddSalesTableData(key, value)
   end
 end
 
-function internal:CheckForDuplicatePurchase(purchasesData, itemUniqueId)
+function internal:CheckForDuplicateUniqueId(purchasesData, itemUniqueId)
+  -- purchasesData is the table of data to verify against
   local dupe = false
   for k, v in pairs(purchasesData) do
-    if v.itemUniqueId == itemUniqueId then
+    if v.id == itemUniqueId then
       dupe = true
       break
     end
@@ -260,6 +286,7 @@ function internal:CheckForDuplicate(itemLink, uniqueId)
   local saveData = internal:SetGuildStoreData(hash)
   if internal:is_empty_or_nil(saveData) then return dupe end
   if internal:is_empty_or_nil(saveData[theIID]) then return dupe end
+  --TODO Check GS Data for theIID bug in CheckForDuplicate
 
   if saveData[theIID] and saveData[theIID][itemIndex] then
     for k, v in pairs(saveData[theIID][itemIndex]) do
@@ -321,6 +348,10 @@ function internal:addToHistoryTables(theEvent, linkHash, buyerHash, sellerHash, 
   --[[theIID is used in the SRIndex so define it here.
   ]]--
   local theIID = GetItemLinkItemId(theEvent.itemLink)
+  local idToMatch = string.match(theEvent.itemLink, '|H.-:item:(.-):')
+  if tonumber(theIID) ~= tonumber(idToMatch) or theIID == 0 then
+    -- internal.dm("Warn", string.format("theIID %s did not equal idToMatch %s in addToHistoryTables (Data) for %s and eventID %s", theIID, idToMatch, theEvent.itemLink, theEvent.id))
+  end
   if theIID == nil then return end
   local hash = internal:MakeHashString(theEvent.itemLink)
   --[[If the ID from the itemLink doesn't exist determine which
@@ -432,10 +463,10 @@ function internal:SetupListener(guildID)
         id        = Id64ToString(eventId)
       }
       theEvent.wasKiosk = (internal.guildMemberInfo[guildID][string.lower(theEvent.buyer)] == nil)
-      local linkHash = internal:AddSalesTableData("ItemLink", theEvent.itemLink)
-      local buyerHash = internal:AddSalesTableData("AccountNames", theEvent.buyer)
-      local sellerHash = internal:AddSalesTableData("AccountNames", theEvent.seller)
-      local guildHash = internal:AddSalesTableData("GuildNames", theEvent.guild)
+      local linkHash = internal:AddSalesTableData("itemLink", theEvent.itemLink)
+      local buyerHash = internal:AddSalesTableData("accountNames", theEvent.buyer)
+      local sellerHash = internal:AddSalesTableData("accountNames", theEvent.seller)
+      local guildHash = internal:AddSalesTableData("guildNames", theEvent.guild)
 
       local isDuplicate = internal:CheckForDuplicate(theEvent.itemLink, theEvent.id)
 
@@ -456,29 +487,32 @@ function internal:SetupListener(guildID)
 end
 
 function internal:addListing(listing, addBuyer)
-  local linkHash = internal:AddSalesTableData("ItemLink", listing.ItemLink)
-  local buyerHash = internal:AddSalesTableData("AccountNames", GetDisplayName())
-  local sellerHash = internal:AddSalesTableData("AccountNames", listing.Seller)
-  local guildHash = internal:AddSalesTableData("GuildNames", listing.Guild)
-  saveData = internal:SetListingsData(hash, listing.itemUniqueId)
+  local linkHash = internal:AddSalesTableData("itemLink", listing.ItemLink)
+  local buyerHash = internal:AddSalesTableData("accountNames", GetDisplayName())
+  local sellerHash = internal:AddSalesTableData("accountNames", listing.Seller)
+  local guildHash = internal:AddSalesTableData("guildNames", listing.Guild)
+  saveData = internal:SetGuildStoreData(hash, listing.itemUniqueId)
 
   if not saveData then
-    saveData = internal:InitListingsData(hash, listing.itemUniqueId)
+    saveData = internal:InitGuildStoreData(hash, listing.itemUniqueId)
   end
 
-  local duplicate = internal:CheckForDuplicatePurchase(saveData, itemUniqueId)
+  local duplicate = internal:CheckForDuplicate(saveData, itemUniqueId)
   if not duplicate then
+    local buyerData = nil
+    if addBuyer then
+      buyerData = buyerHash -- yourself
+    end
     table.insert(saveData, {
-      if addBuyer then
-        Buyer = buyerHash, -- yourself
-      end
+      Buyer = buyerData, -- yourself unless not a purchace
       Seller = sellerHash, -- who listed the item
-      ItemLink = linkHash,
+      ItemLink = listing.ItemLink,
+      -- ItemLink = linkHash,
       Quantity = listing.Quantity,
       Price = listing.Price,
       Guild = guildHash,
       TimeStamp = listing.TimeStamp,
-      itemUniqueId = listing.itemUniqueId,
+      id = listing.id,
     })
   end
 end
@@ -491,11 +525,11 @@ function internal:onTradingHouseEvent(eventCode, slotId, isPending)
     CurrentPurchase.ItemLink = GetTradingHouseSearchResultItemLink(slotId)
     CurrentPurchase.Quantity = quantity
     CurrentPurchase.Price = price
-    CurrentPurchase.Seller = seller:gsub("|c.-$", "")
+    CurrentPurchase.Seller = seller
     CurrentPurchase.Guild = guild
-    CurrentPurchase.itemUniqueId = Id64ToString(itemUniqueId)
+    CurrentPurchase.id = Id64ToString(itemUniqueId)
     CurrentPurchase.TimeStamp = GetTimeStamp()
-    internal:addListing(ShoppingList.CurrentPurchase)
+    internal:addListing(CurrentPurchase, addBuyer)
     --ShoppingList.List:Refresh()
   end
 end
@@ -526,16 +560,16 @@ function internal:processAwesomeGuildStore(itemDatabase)
     CurrentPurchase.Guild = guild
     CurrentPurchase.itemUniqueId = Id64ToString(itemUniqueId)
     CurrentPurchase.TimeStamp = GetTimeStamp()
-    internal:addListing(ShoppingList.CurrentPurchase)
+    internal:addListing(CurrentPurchase)
     ]]--
     --ShoppingList.List:Refresh()
 end
 
 function internal:ReferenceData(otherData, listings)
   if listings then
-    destinationDataBank = internal.guildStoreListings = { } -- holds all listings
+    destinationDataBank = internal.guildStoreListings -- holds all listings
   else
-    destinationDataBank = internal.guildStoreListings = { } -- holds all listings
+    destinationDataBank = internal.guildStoreListings -- holds all listings
   end
   otherData.savedVariables.dataLocations = otherData.savedVariables.dataLocations or {}
   otherData.savedVariables.dataLocations[GetWorldName()] = true

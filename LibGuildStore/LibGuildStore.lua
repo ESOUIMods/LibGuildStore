@@ -1,6 +1,64 @@
 local lib = _G["LibGuildStore"]
 local internal = _G["LibGuildStore_Internal"]
 
+function internal:v(level, message)
+  local verboseLevel = internal.verboseLevel or 4
+  -- DEBUG
+  if (level <= verboseLevel) then
+    if message then
+      if CHAT_ROUTER then
+        CHAT_ROUTER:AddSystemMessage(message)
+      elseif RequestDebugPrintText then
+        RequestDebugPrintText(message)
+      else
+        d(message)
+      end
+    end
+  end
+end
+
+-- /script d(internal.internal[622389]:GetPendingEventMetrics())
+function internal:CheckStatus()
+  internal.dm("Debug", "CheckStatus")
+  for i = 1, GetNumGuilds() do
+    local guildID                               = GetGuildId(i)
+    local numEvents                             = GetNumGuildEvents(guildID, GUILD_HISTORY_STORE)
+    local eventCount, processingSpeed, timeLeft = internal.LibHistoireListener[guildID]:GetPendingEventMetrics()
+    if timeLeft > -1 or (eventCount == 1 and numEvents == 0) then internal.timeEstimated[guildID] = true end
+    if (timeLeft == -1 and eventCount == 1 and numEvents == 0) and internal.timeEstimated[guildID] then internal.eventsNeedProcessing[guildID] = false end
+    if eventCount == 0 and internal.timeEstimated[guildID] then internal.eventsNeedProcessing[guildID] = false end
+    --if eventCount > 1 then
+      internal:v(1, string.format("Events remaining: %s for %s and %s : %s", eventCount, GetGuildName(guildID), processingSpeed, timeLeft))
+    --end
+  end
+  for i = 1, GetNumGuilds() do
+    local guildID = GetGuildId(i)
+    if internal.eventsNeedProcessing[guildID] then return true end
+  end
+  return false
+end
+
+function internal:QueueCheckStatus()
+  internal.dm("Debug", "QueueCheckStatus")
+  local eventsRemaining = internal:CheckStatus()
+  if eventsRemaining then
+    zo_callLater(function() internal:QueueCheckStatus()
+    end, 500) -- 2 minutes
+  else
+    --[[
+    MasterMerchant.CenterScreenAnnounce_AddMessage(
+      'LibHistoireAlert',
+      CSA_EVENT_SMALL_TEXT,
+      LibGuildStore.systemSavedVariables.alertSoundName,
+      "LibHistoire Ready"
+    )
+    ]]--
+    internal.dm("Debug", "Thinks QueueCheckStatus is done")
+    internal:v(2, "LibHistoire Ready")
+    LibGuildStore.guildStoreReady = true
+  end
+end
+
 local function Initilizze()
   for i = 1, GetNumGuilds() do
     local guildID = GetGuildId(i)
@@ -14,6 +72,7 @@ local function Initilizze()
     end
     internal:SetupListener(guildID)
   end
+  internal:QueueCheckStatus()
 
   if AwesomeGuildStore then
     -- register for purchace
@@ -48,7 +107,7 @@ local function Initilizze()
       --internal:addListing(CurrentPurchase)
       --ShoppingList.List:Refresh()
     end)
-
+    
     AwesomeGuildStore:RegisterCallback(AwesomeGuildStore.callback.ITEM_POSTED, function(guildId, itemLink, price, stackCount)
       local saveData = GS16DataSavedVariables["postedItems"]
       table.insert(saveData, {
@@ -64,7 +123,7 @@ local function Initilizze()
       --internal.dm("Debug", price)
       --internal.dm("Debug", stackCount)
     end)
-
+    
     AwesomeGuildStore:RegisterCallback(AwesomeGuildStore.callback.ITEM_CANCELLED, function(guildId, itemLink, price, stackCount)
       local saveData = GS16DataSavedVariables["cancelledItems"]
       table.insert(saveData, {
