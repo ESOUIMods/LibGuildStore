@@ -60,7 +60,7 @@ end
 function internal:MakeIndexFromLink(itemLink)
   --Standardize Level to 1 if the level is not relevent but is stored on some items (ex: recipes)
   local levelReq = 1
-  local itemType = GetItemLinkItemType(itemLink)
+  local itemType, specializedItemType = GetItemLinkItemType(itemLink)
   if itemType ~= ITEMTYPE_RECIPE then
     levelReq = GetItemLinkRequiredLevel(itemLink)
   end
@@ -74,7 +74,10 @@ function internal:MakeIndexFromLink(itemLink)
   else
     theLastNumber = string.match(itemLink, '|H.-:item:.-:(%d-)|h') or 0
   end
-
+  if itemType == ITEMTYPE_POISON or itemType == ITEMTYPE_POTION then
+    local value = GetPotionPowerLevel(itemLink)
+    itemTrait = MasterMerchant.potionVarientTable[value] or "0"
+  end
   local index = levelReq .. ':' .. vetReq .. ':' .. itemQuality .. ':' .. itemTrait .. ':' .. theLastNumber
 
   return index
@@ -187,20 +190,20 @@ function internal:BuildGuildNameLookup()
   end
 end
 
-function internal:InitSalesData(hash, theIID)
+function internal:InitGuildStoreData(hash, identifier)
   local dataTable = _G[string.format("GS%02dDataSavedVariables", hash)]
   local savedVars = dataTable['data']
-  savedVars[theIID] = {}
+  savedVars[identifier] = {}
   return savedVars
 end
 
-function internal:SetSalesData(hash)
+function internal:SetGuildStoreData(hash)
   local dataTable = _G[string.format("GS%02dDataSavedVariables", hash)]
   local savedVars = dataTable['data']
   return savedVars
 end
 
-function internal:setSalesTableData(key)
+function internal:setStorageTableData(key)
   local savedVars = GS16DataSavedVariables
   local lookupData = savedVars[key]
   return lookupData
@@ -237,7 +240,7 @@ function internal:CheckForDuplicatePurchase(purchasesData, itemUniqueId)
   return dupe
 end
 
-function internal:CheckForDuplicate(itemLink, eventID)
+function internal:CheckForDuplicate(itemLink, uniqueId)
   local dupe = false
   --[[ we need to be able to calculate theIID and itemIndex
   when not used with addToHistoryTables() event though
@@ -254,13 +257,13 @@ function internal:CheckForDuplicate(itemLink, eventID)
   if theIID == nil then return end
   local itemIndex = internal:MakeIndexFromLink(itemLink)
   local hash = internal:MakeHashString(itemLink)
-  local saveData = internal:SetSalesData(hash)
+  local saveData = internal:SetGuildStoreData(hash)
   if internal:is_empty_or_nil(saveData) then return dupe end
   if internal:is_empty_or_nil(saveData[theIID]) then return dupe end
 
   if saveData[theIID] and saveData[theIID][itemIndex] then
     for k, v in pairs(saveData[theIID][itemIndex]) do
-      if v.id == eventID then
+      if v.id == uniqueId then
         dupe = true
         break
       end
@@ -321,12 +324,12 @@ function internal:addToHistoryTables(theEvent, linkHash, buyerHash, sellerHash, 
   if theIID == nil then return end
   local hash = internal:MakeHashString(theEvent.itemLink)
   --[[If the ID from the itemLink doesn't exist determine which
-  file or container it will belong to using setSalesData()
+  file or container it will belong to using SetGuildStoreData()
   ]]--
-  saveData = internal:SetSalesData(hash)
+  saveData = internal:SetGuildStoreData(hash)
 
   if not saveData[theIID] then
-    saveData = internal:InitSalesData(hash, theIID)
+    saveData = internal:InitGuildStoreData(hash, theIID)
   end
 
   local insertedIndex = 1
@@ -452,24 +455,30 @@ function internal:SetupListener(guildID)
   internal.LibHistoireListener[guildID]:Start()
 end
 
-function internal:addPurchase(purchase)
-  local linkHash = internal:AddSalesTableData("ItemLink", purchase.ItemLink)
+function internal:addListing(listing, addBuyer)
+  local linkHash = internal:AddSalesTableData("ItemLink", listing.ItemLink)
   local buyerHash = internal:AddSalesTableData("AccountNames", GetDisplayName())
-  local sellerHash = internal:AddSalesTableData("AccountNames", purchase.Seller)
-  local guildHash = internal:AddSalesTableData("GuildNames", purchase.Guild)
-  local saveData = GS17DataSavedVariables["purchases"]
+  local sellerHash = internal:AddSalesTableData("AccountNames", listing.Seller)
+  local guildHash = internal:AddSalesTableData("GuildNames", listing.Guild)
+  saveData = internal:SetListingsData(hash, listing.itemUniqueId)
+
+  if not saveData then
+    saveData = internal:InitListingsData(hash, listing.itemUniqueId)
+  end
 
   local duplicate = internal:CheckForDuplicatePurchase(saveData, itemUniqueId)
   if not duplicate then
     table.insert(saveData, {
-      Buyer = buyerHash, -- yourself
+      if addBuyer then
+        Buyer = buyerHash, -- yourself
+      end
       Seller = sellerHash, -- who listed the item
       ItemLink = linkHash,
-      Quantity = purchase.Quantity,
-      Price = purchase.Price,
+      Quantity = listing.Quantity,
+      Price = listing.Price,
       Guild = guildHash,
-      TimeStamp = purchase.TimeStamp,
-      itemUniqueId = purchase.itemUniqueId,
+      TimeStamp = listing.TimeStamp,
+      itemUniqueId = listing.itemUniqueId,
     })
   end
 end
@@ -486,7 +495,7 @@ function internal:onTradingHouseEvent(eventCode, slotId, isPending)
     CurrentPurchase.Guild = guild
     CurrentPurchase.itemUniqueId = Id64ToString(itemUniqueId)
     CurrentPurchase.TimeStamp = GetTimeStamp()
-    internal:addPurchase(ShoppingList.CurrentPurchase)
+    internal:addListing(ShoppingList.CurrentPurchase)
     --ShoppingList.List:Refresh()
   end
 end
@@ -517,7 +526,47 @@ function internal:processAwesomeGuildStore(itemDatabase)
     CurrentPurchase.Guild = guild
     CurrentPurchase.itemUniqueId = Id64ToString(itemUniqueId)
     CurrentPurchase.TimeStamp = GetTimeStamp()
-    internal:addPurchase(ShoppingList.CurrentPurchase)
+    internal:addListing(ShoppingList.CurrentPurchase)
     ]]--
     --ShoppingList.List:Refresh()
 end
+
+function internal:ReferenceData(otherData, listings)
+  if listings then
+    destinationDataBank = internal.guildStoreListings = { } -- holds all listings
+  else
+    destinationDataBank = internal.guildStoreListings = { } -- holds all listings
+  end
+  otherData.savedVariables.dataLocations = otherData.savedVariables.dataLocations or {}
+  otherData.savedVariables.dataLocations[GetWorldName()] = true
+
+  for itemid, versionlist in pairs(otherData.savedVariables.SalesData) do
+    if self.salesData[itemid] then
+      for versionid, versiondata in pairs(versionlist) do
+        if self.salesData[itemid][versionid] then
+          if versiondata.sales then
+            self.salesData[itemid][versionid].sales = self.salesData[itemid][versionid].sales or {}
+            -- IPAIRS
+            for saleid, saledata in pairs(versiondata.sales) do
+              if (type(saleid) == 'number' and type(saledata) == 'table' and type(saledata.timestamp) == 'number') then
+                table.insert(self.salesData[itemid][versionid].sales, saledata)
+              end
+            end
+            local _, first = next(versiondata.sales, nil)
+            if first then
+              self.salesData[itemid][versionid].itemIcon = GetItemLinkInfo(first.itemLink)
+              self.salesData[itemid][versionid].itemAdderText = self.addedSearchToItem(first.itemLink)
+              self.salesData[itemid][versionid].itemDesc = GetItemLinkName(first.itemLink)
+            end
+          end
+        else
+          self.salesData[itemid][versionid] = versiondata
+        end
+      end
+      otherData.savedVariables.SalesData[itemid] = nil
+    else
+      self.salesData[itemid] = versionlist
+    end
+  end
+end
+

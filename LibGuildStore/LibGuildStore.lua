@@ -26,7 +26,7 @@ local function Initilizze()
       CurrentPurchase.Guild = itemData.guildName
       CurrentPurchase.itemUniqueId = Id64ToString(itemData.itemUniqueId)
       CurrentPurchase.TimeStamp = GetTimeStamp()
-      internal:addPurchase(CurrentPurchase)
+      internal:addListing(CurrentPurchase)
       --ShoppingList.List:Refresh()
     end)
 
@@ -45,12 +45,12 @@ local function Initilizze()
       CurrentPurchase.TimeStamp = GetTimeStamp()
       internal.dm("Debug", CurrentPurchase)
       ]]--
-      --internal:addPurchase(CurrentPurchase)
+      --internal:addListing(CurrentPurchase)
       --ShoppingList.List:Refresh()
     end)
-    
+
     AwesomeGuildStore:RegisterCallback(AwesomeGuildStore.callback.ITEM_POSTED, function(guildId, itemLink, price, stackCount)
-      local saveData = GS17DataSavedVariables["postedItems"]
+      local saveData = GS16DataSavedVariables["postedItems"]
       table.insert(saveData, {
         ItemLink = itemLink,
         Quantity = stackCount,
@@ -64,9 +64,9 @@ local function Initilizze()
       --internal.dm("Debug", price)
       --internal.dm("Debug", stackCount)
     end)
-    
+
     AwesomeGuildStore:RegisterCallback(AwesomeGuildStore.callback.ITEM_CANCELLED, function(guildId, itemLink, price, stackCount)
-      local saveData = GS17DataSavedVariables["cancelledItems"]
+      local saveData = GS16DataSavedVariables["cancelledItems"]
       table.insert(saveData, {
         ItemLink = itemLink,
         Quantity = stackCount,
@@ -114,7 +114,7 @@ local function Initilizze()
   AGS.callback.ITEM_POSTED = "ItemPosted"  ]]--
 
   -- for vanilla without AwesomeGuildStore
-  EVENT_MANAGER:RegisterForEvent(ShoppingList.Name, EVENT_TRADING_HOUSE_CONFIRM_ITEM_PURCHASE, function(...) internal:onTradingHouseEvent(...) end)
+  EVENT_MANAGER:RegisterForEvent(lib.libName, EVENT_TRADING_HOUSE_CONFIRM_ITEM_PURCHASE, function(...) internal:onTradingHouseEvent(...) end)
 
 end
 

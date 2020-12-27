@@ -2,9 +2,11 @@ local libName, libVersion = "GS16Data", 100
 local lib = {}
 lib.libName = libName
 lib.defaults = {
-  ["ItemLink"] = {},
-  ["AccountNames"] = {},
-  ["GuildNames"] = {},
+  ["itemLink"] = {},
+  ["accountNames"] = {},
+  ["guildNames"] = {},
+  ["postedItems"] = {},
+  ["cancelledItems"] = {},
 }
 
 local function Initialize()

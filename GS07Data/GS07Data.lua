@@ -1,7 +1,10 @@
 local libName, libVersion = "GS07Data", 100
 local lib = {}
 lib.libName = libName
-lib.defaults = { ['data'] = {} }
+lib.defaults = { 
+  ['data'] = {},
+  ["listings"] = {},
+}
 
 local function Initialize()
   if not GS07DataSavedVariables then GS07DataSavedVariables = lib.defaults end
