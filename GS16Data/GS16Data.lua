@@ -5,8 +5,6 @@ lib.defaults = {
   ["itemLink"] = {},
   ["accountNames"] = {},
   ["guildNames"] = {},
-  ["postedItems"] = {},
-  ["cancelledItems"] = {},
 }
 
 local function Initialize()

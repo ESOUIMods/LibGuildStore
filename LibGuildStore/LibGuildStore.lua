@@ -1,49 +1,49 @@
 local lib = _G["LibGuildStore"]
 local internal = _G["LibGuildStore_Internal"]
+local sales_data = _G["LibGuildStore_SalesData"]
+local sr_index = _G["LibGuildStore_SalesIndex"]
 
-function internal:v(level, message)
-  local verboseLevel = internal.verboseLevel or 4
-  -- DEBUG
-  if (level <= verboseLevel) then
-    if message then
-      if CHAT_ROUTER then
-        CHAT_ROUTER:AddSystemMessage(message)
-      elseif RequestDebugPrintText then
-        RequestDebugPrintText(message)
-      else
-        d(message)
-      end
-    end
-  end
-end
-
--- /script d(internal.internal[622389]:GetPendingEventMetrics())
+--/script LibGuildStore_Internal:dm("Info", LibGuildStore_Internal.LibHistoireListener[622389]:GetPendingEventMetrics())
 function internal:CheckStatus()
-  internal.dm("Debug", "CheckStatus")
-  for i = 1, GetNumGuilds() do
-    local guildID                               = GetGuildId(i)
-    local numEvents                             = GetNumGuildEvents(guildID, GUILD_HISTORY_STORE)
-    local eventCount, processingSpeed, timeLeft = internal.LibHistoireListener[guildID]:GetPendingEventMetrics()
-    if timeLeft > -1 or (eventCount == 1 and numEvents == 0) then internal.timeEstimated[guildID] = true end
-    if (timeLeft == -1 and eventCount == 1 and numEvents == 0) and internal.timeEstimated[guildID] then internal.eventsNeedProcessing[guildID] = false end
-    if eventCount == 0 and internal.timeEstimated[guildID] then internal.eventsNeedProcessing[guildID] = false end
-    --if eventCount > 1 then
-      internal:v(1, string.format("Events remaining: %s for %s and %s : %s", eventCount, GetGuildName(guildID), processingSpeed, timeLeft))
-    --end
+  --internal:dm("Debug", "CheckStatus")
+  for guildNum = 1, GetNumGuilds() do
+    local guildId                                                    = GetGuildId(guildNum)
+    local guildName = GetGuildName(guildId)
+    local numEvents                                           = GetNumGuildEvents(guildId, GUILD_HISTORY_STORE)
+    local eventCount, processingSpeed, timeLeft = internal.LibHistoireListener[guildId]:GetPendingEventMetrics()
+
+    timeLeft = math.floor(timeLeft)
+
+    if timeLeft ~= -1 or processingSpeed ~= -1 then internal.timeEstimated[guildId] = true end
+
+    if (numEvents == 0 and eventCount == 1 and processingSpeed == -1 and timeLeft == -1) then
+      internal.timeEstimated[guildId] = true
+      internal.eventsNeedProcessing[guildId] = false
+    end
+
+    if eventCount == 0 and internal.timeEstimated[guildId] then internal.eventsNeedProcessing[guildId] = false end
+
+    if timeLeft == 0 and internal.timeEstimated[guildId] then internal.eventsNeedProcessing[guildId] = false end
+
+    --[[
+    if internal.eventsNeedProcessing[guildId] then
+      internal:dm("Debug", string.format("%s: numEvents: %s eventCount: %s processingSpeed: %s timeLeft: %s", guildName, numEvents, eventCount, processingSpeed, timeLeft))
+    end
+    ]]--
+
   end
-  for i = 1, GetNumGuilds() do
-    local guildID = GetGuildId(i)
-    if internal.eventsNeedProcessing[guildID] then return true end
+  for guildNum = 1, GetNumGuilds() do
+    local guildId = GetGuildId(guildNum)
+    if internal.eventsNeedProcessing[guildId] then return true end
   end
   return false
 end
 
 function internal:QueueCheckStatus()
-  internal.dm("Debug", "QueueCheckStatus")
   local eventsRemaining = internal:CheckStatus()
   if eventsRemaining then
-    zo_callLater(function() internal:QueueCheckStatus()
-    end, 500) -- 2 minutes
+    zo_callLater(function() internal:QueueCheckStatus() end, 60000) -- 60000 1 minute
+    internal:dm("Info", "LibGuildStore Refresh Not Finished Yet")
   else
     --[[
     MasterMerchant.CenterScreenAnnounce_AddMessage(
@@ -53,26 +53,109 @@ function internal:QueueCheckStatus()
       "LibHistoire Ready"
     )
     ]]--
-    internal.dm("Debug", "Thinks QueueCheckStatus is done")
-    internal:v(2, "LibHistoire Ready")
-    LibGuildStore.guildStoreReady = true
+    internal:dm("Info", "LibGuildStore Refresh Finished")
+    lib.guildStoreReady = true
+    LibGuildStore_SavedVariables["firstRun"] = false
   end
 end
 
-local function Initilizze()
-  for i = 1, GetNumGuilds() do
-    local guildID = GetGuildId(i)
-    local guildName = GetGuildName(guildID)
-    if not LibGuildStore_SavedVariables["lastReceivedEventID"][guildID] then LibGuildStore_SavedVariables["lastReceivedEventID"][guildID] = "0" end
-    internal.alertQueue[guildName] = {}
-    for m = 1, GetNumGuildMembers(guildID) do
-      local guildMemInfo, _, _, _, _ = GetGuildMemberInfo(guildID, m)
-      if internal.guildMemberInfo[guildID] == nil then internal.guildMemberInfo[guildID] = {} end
-      internal.guildMemberInfo[guildID][string.lower(guildMemInfo)] = true
-    end
-    internal:SetupListener(guildID)
+local function SetNamespace()
+  if GetWorldName() == 'NA Megaserver' then
+    internal.dataNamespace = "datana"
+    internal.listingsNamespace = "listingsna"
+  else
+    internal.dataNamespace = "dataeu"
+    internal.listingsNamespace = "listingseu"
   end
-  internal:QueueCheckStatus()
+end
+
+function internal:SetupListenerLibHistoire()
+  internal:dm("Debug", "SetupListenerLibHistoire")
+  for i = 1, GetNumGuilds() do
+    local guildId = GetGuildId(i)
+    internal.LibHistoireListener[guildId] = {}
+    internal:SetupListener(guildId)
+  end
+end
+
+local function SetupLibGuildStore()
+  internal:dm("Debug", "SetupLibGuildStore For First Run")
+  for guildNum = 1, GetNumGuilds() do
+    local guildId = GetGuildId(guildNum)
+    LibGuildStore_SavedVariables["lastReceivedEventID"][guildId] = "0"
+    internal.eventsNeedProcessing[guildId] = true
+    internal.timeEstimated[guildId] = false
+  end
+end
+
+function internal:RefreshLibGuildStore()
+  internal:dm("Debug", "RefreshLibGuildStore")
+  for guildNum = 1, GetNumGuilds() do
+    local guildId = GetGuildId(guildNum)
+    internal.LibHistoireListener[guildId]:Stop()
+    LibGuildStore_SavedVariables["lastReceivedEventID"][guildId] = "0"
+    internal.eventsNeedProcessing[guildId] = true
+    internal.timeEstimated[guildId] = false
+  end
+end
+
+local function SetupDefaults()
+  internal:dm("Debug", "SetupDefaults")
+  if LibGuildStore_SavedVariables["firstRun"] == nil then LibGuildStore_SavedVariables["firstRun"] = true end
+  if LibGuildStore_SavedVariables["updateAdditionalText"] == nil then LibGuildStore_SavedVariables["updateAdditionalText"] = internal.defaults.updateAdditionalText end
+  if LibGuildStore_SavedVariables["historyDepth"] == nil then LibGuildStore_SavedVariables["historyDepth"] = internal.defaults.historyDepth end
+  if LibGuildStore_SavedVariables["minItemCount"] == nil then LibGuildStore_SavedVariables["minItemCount"] = internal.defaults.minItemCount end
+  if LibGuildStore_SavedVariables["maxItemCount"] == nil then LibGuildStore_SavedVariables["maxItemCount"] = internal.defaults.maxItemCount end
+  if LibGuildStore_SavedVariables["showGuildInitSummary"] == nil then LibGuildStore_SavedVariables["showGuildInitSummary"] = internal.defaults.showGuildInitSummary end
+  if LibGuildStore_SavedVariables["showIndexingSummary"] == nil then LibGuildStore_SavedVariables["showIndexingSummary"] = internal.defaults.showIndexingSummary end
+  if LibGuildStore_SavedVariables["minimalIndexing"] == nil then LibGuildStore_SavedVariables["minimalIndexing"] = internal.defaults.minimalIndexing end
+  if LibGuildStore_SavedVariables["useSalesHistory"] == nil then LibGuildStore_SavedVariables["useSalesHistory"] = internal.defaults.useSalesHistory end
+  SetNamespace()
+end
+
+local function BuildLookupTables()
+  internal:dm("Debug", "BuildLookupTables")
+  -- Build lookup tables
+  internal:BuildAccountNameLookup()
+  internal:BuildItemLinkNameLookup()
+  internal:BuildGuildNameLookup()
+end
+
+local function SetupData()
+  internal:dm("Debug", "SetupData")
+  local LEQ = LibExecutionQueue:new()
+  LEQ:Add(function() BuildLookupTables() end, 'BuildLookupTables')
+  LEQ:Add(function() internal:dm("Info", "LibGuildStore Initializing") end, "LibGuildStoreInitializing")
+  LEQ:Add(function() internal:ReferenceSalesAllContainers() end, 'ReferenceSalesAllContainers')
+  LEQ:Add(function() internal:AddNewDataAllContainers() end, 'AddNewDataAllContainers')
+  LEQ:Add(function() internal:TruncateHistory() end, 'TruncateHistory')
+  LEQ:Add(function() internal:RenewExtraDataAllContainers() end, 'RenewExtraDataAllContainers')
+  LEQ:Add(function() internal:InitItemHistory() end, 'InitItemHistory')
+  LEQ:Add(function() internal:indexHistoryTables() end, 'indexHistoryTables')
+  LEQ:Add(function() internal:SetupListenerLibHistoire() end, 'SetupListenerLibHistoire')
+  LEQ:Start()
+end
+
+local function Initilizze()
+  SetupDefaults()
+  for i = 1, GetNumGuilds() do
+    local guildId = GetGuildId(i)
+    local guildName = GetGuildName(guildId)
+    if not LibGuildStore_SavedVariables["lastReceivedEventID"][guildId] then LibGuildStore_SavedVariables["lastReceivedEventID"][guildId] = "0" end
+    internal.alertQueue[guildName] = {}
+    for m = 1, GetNumGuildMembers(guildId) do
+      local guildMemInfo, _, _, _, _ = GetGuildMemberInfo(guildId, m)
+      if internal.guildMemberInfo[guildId] == nil then internal.guildMemberInfo[guildId] = {} end
+      internal.guildMemberInfo[guildId][string.lower(guildMemInfo)] = true
+    end
+  end
+  if LibGuildStore_SavedVariables["firstRun"] then
+    SetupLibGuildStore()
+    zo_callLater(function() internal:QueueCheckStatus() end, 60000) -- 60000 1 minute
+  end
+  SetupData()
+
+  internal:LibAddonInit()
 
   if AwesomeGuildStore then
     -- register for purchace
@@ -102,14 +185,14 @@ local function Initilizze()
       CurrentPurchase.Guild = itemData.guildName
       CurrentPurchase.itemUniqueId = Id64ToString(itemData.itemUniqueId)
       CurrentPurchase.TimeStamp = GetTimeStamp()
-      internal.dm("Debug", CurrentPurchase)
+      internal:dm("Debug", CurrentPurchase)
       ]]--
       --internal:addListing(CurrentPurchase)
       --ShoppingList.List:Refresh()
     end)
-    
+
     AwesomeGuildStore:RegisterCallback(AwesomeGuildStore.callback.ITEM_POSTED, function(guildId, itemLink, price, stackCount)
-      local saveData = GS16DataSavedVariables["postedItems"]
+      local saveData = GS17DataSavedVariables["postedItems"]
       table.insert(saveData, {
         ItemLink = itemLink,
         Quantity = stackCount,
@@ -118,14 +201,14 @@ local function Initilizze()
         TimeStamp = GetTimeStamp()
       })
       --gettext("You have cancelled your listing of <<1>>x <<t:2>> for <<3>> in <<4>>", stackCount, itemLink, price, guildName)
-      --internal.dm("Debug", guildId)
-      --internal.dm("Debug", itemLink)
-      --internal.dm("Debug", price)
-      --internal.dm("Debug", stackCount)
+      --internal:dm("Debug", guildId)
+      --internal:dm("Debug", itemLink)
+      --internal:dm("Debug", price)
+      --internal:dm("Debug", stackCount)
     end)
-    
+
     AwesomeGuildStore:RegisterCallback(AwesomeGuildStore.callback.ITEM_CANCELLED, function(guildId, itemLink, price, stackCount)
-      local saveData = GS16DataSavedVariables["cancelledItems"]
+      local saveData = GS17DataSavedVariables["cancelledItems"]
       table.insert(saveData, {
         ItemLink = itemLink,
         Quantity = stackCount,
@@ -134,10 +217,10 @@ local function Initilizze()
         TimeStamp = GetTimeStamp()
       })
       --gettext("You have cancelled your listing of <<1>>x <<t:2>> for <<3>> in <<4>>", stackCount, itemLink, price, guildName)
-      --internal.dm("Debug", guildId)
-      --internal.dm("Debug", itemLink)
-      --internal.dm("Debug", price)
-      --internal.dm("Debug", stackCount)
+      --internal:dm("Debug", guildId)
+      --internal:dm("Debug", itemLink)
+      --internal:dm("Debug", price)
+      --internal:dm("Debug", stackCount)
     end)
   end
   --[[
@@ -177,9 +260,78 @@ local function Initilizze()
 
 end
 
+function internal.Slash(allArgs)
+  local args        = ""
+  local guildNumber = 0
+  local hoursBack   = 0
+  local argNum      = 0
+  for w in string.gmatch(allArgs, "%w+") do
+    argNum = argNum + 1
+    if argNum == 1 then args = w end
+    if argNum == 2 then guildNumber = tonumber(w) end
+    if argNum == 3 then hoursBack = tonumber(w) end
+  end
+  args = string.lower(args)
+
+  if args == 'help' then
+    internal:dm("Info", GetString(GS_HELP_DUPS))
+    internal:dm("Info", GetString(GS_HELP_CLEAN))
+    internal:dm("Info", GetString(GS_HELP_SLIDE))
+    return
+  end
+  if args == 'dups' or args == 'stilldups' then
+    if internal.isDatabaseBusy then
+      if args == 'dups' then internal:dm("Info", GetString(GS_PURGING_DUPLICATES_DELAY)) end
+      zo_callLater(function() internal.Slash('stilldups') end, 10000)
+      return
+    end
+    internal:dm("Info", GetString(GS_PURGING_DUPLICATES))
+    internal:PurgeDups()
+    return
+  end
+  if args == 'slide' or args == 'stillslide' then
+    if internal.isDatabaseBusy then
+      if args ~= 'stillslide' then internal:dm("Info", GetString(GS_SLIDING_SALES_DELAY)) end
+      zo_callLater(function() internal.Slash('stillslide') end, 10000)
+      return
+    end
+    internal:dm("Info", GetString(GS_SLIDING_SALES))
+    internal:SlideSales(false)
+    return
+  end
+
+  if args == 'slideback' or args == 'stillslideback' then
+    if internal.isDatabaseBusy then
+      if args ~= 'stillslideback' then internal:dm("Info", GetString(GS_SLIDING_SALES_DELAY)) end
+      zo_callLater(function() internal.Slash('stillslideback') end, 10000)
+      return
+    end
+    internal:dm("Info", GetString(GS_SLIDING_SALES))
+    internal:SlideSales(true)
+    return
+  end
+
+  if args == 'clean' or args == 'stillclean' then
+    if internal.isDatabaseBusy then
+      if args == 'clean' then internal:dm("Info", GetString(GS_CLEAN_START_DELAY)) end
+      zo_callLater(function() internal.Slash('stillclean') end, 10000)
+      return
+    end
+    internal:dm("Info", GetString(GS_CLEAN_START))
+    internal:CleanOutBad()
+    return
+  end
+  if args == 'redesc' then
+    LibGuildStore_SavedVariables["updateAdditionalText"] = true
+    internal:dm("Info", GetString(GS_CLEAN_UPDATE_DESC))
+    return
+  end
+end
+
 local function OnAddOnLoaded(eventCode, addonName)
   if addonName == lib.libName then
-    internal.dm("Debug", "LibGuildStore Loaded")
+    SLASH_COMMANDS['/lgs'] = internal.Slash
+    internal:dm("Debug", "LibGuildStore Loaded")
     Initilizze()
   end
 end

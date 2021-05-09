@@ -2,8 +2,10 @@ local libName, libVersion = "GS05Data", 100
 local lib = {}
 lib.libName = libName
 lib.defaults = { 
-  ['data'] = {},
-  ["listings"] = {},
+  ['datana'] = {},
+  ['dataeu'] = {},
+  ["listingsna"] = {},
+  ["listingseu"] = {},
 }
 
 local function Initialize()
