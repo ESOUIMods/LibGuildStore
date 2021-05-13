@@ -1,6 +1,7 @@
 local lib = _G["LibGuildStore"]
 local internal = _G["LibGuildStore_Internal"]
 local sales_data = _G["LibGuildStore_SalesData"]
+local listings_data = _G["LibGuildStore_ListingsData"]
 local sr_index = _G["LibGuildStore_SalesIndex"]
 
 --/script LibGuildStore_Internal:dm("Info", LibGuildStore_Internal.LibHistoireListener[622389]:GetPendingEventMetrics())
@@ -285,7 +286,6 @@ function internal.Slash(allArgs)
       zo_callLater(function() internal.Slash('stilldups') end, 10000)
       return
     end
-    internal:dm("Info", GetString(GS_PURGING_DUPLICATES))
     internal:PurgeDups()
     return
   end
@@ -326,6 +326,17 @@ function internal.Slash(allArgs)
     internal:dm("Info", GetString(GS_CLEAN_UPDATE_DESC))
     return
   end
+  if args == 'import' then
+    if internal.isDatabaseBusy then
+      internal:dm("Info", "LibGuildStore is busy")
+      return
+    end
+    internal:dm("Info", "Import MasterMerchant/ATT Sales")
+    internal:ImportAllMasterMerchantSales()
+    internal:ImportAllATTSales()
+    return
+  end
+  args = ""
 end
 
 local function OnAddOnLoaded(eventCode, addonName)

@@ -1,44 +1,69 @@
 local lib = _G["LibGuildStore"]
 local internal = _G["LibGuildStore_Internal"]
 local sales_data = _G["LibGuildStore_SalesData"]
+local listings_data = _G["LibGuildStore_ListingsData"]
 local sr_index = _G["LibGuildStore_SalesIndex"]
+local ASYNC = LibAsync
+local LGH = LibHistoire
 
 --[[ This file contains all instances of functions that utilize
 iterateOverSalesData.
 ]]--
 
-local ASYNC                     = LibAsync
-
 ----------------------------------------
 ----- Helpers                      -----
 ----------------------------------------
 
-function internal:CleanMule(dataset)
-  local muleIdCount = 0
-  local items       = {}
-  for iid, id in pairs(dataset) do
-    if (id ~= nil) and (type(id) == 'table') then
-      items[iid] = id
-    else
-      muleIdCount = muleIdCount + 1
-    end
-  end
-  return muleIdCount
-end
-
-function internal:CleanSavedVariables(dataset)
+function internal:CompareSalesCounts(dataset)
   local saveData = dataset[internal.dataNamespace]
-  for itemID, itemIndex in pairs(saveData) do
-    for field, itemIndexData in pairs(itemIndex) do
+  for itemID, itemData in pairs(saveData) do
+    for itemIndex, itemIndexData in pairs(itemData) do
       if itemIndexData.wasAltered then
-        internal.a_temp = itemIndexData
-        internal.b_temp = sales_data[itemID][field]
-        if internal:NonContiguousNonNilCount(itemIndexData['sales']) ~= internal:NonContiguousNonNilCount(sales_data[itemID][field]['sales']) then
-          internal:dm("Debug", "Not Equal")
+        if internal:NonContiguousNonNilCount(itemIndexData['sales']) ~= internal:NonContiguousNonNilCount(sales_data[itemID][itemIndex]['sales']) then
+          internal:dm("Debug", "Sales Counts Not Equal")
         end
       end
     end
   end
+end
+
+function internal:CompareAllSalesCounts()
+  internal:CompareSalesCounts(GS00DataSavedVariables)
+  internal:CompareSalesCounts(GS01DataSavedVariables)
+  internal:CompareSalesCounts(GS02DataSavedVariables)
+  internal:CompareSalesCounts(GS03DataSavedVariables)
+  internal:CompareSalesCounts(GS04DataSavedVariables)
+  internal:CompareSalesCounts(GS05DataSavedVariables)
+  internal:CompareSalesCounts(GS06DataSavedVariables)
+  internal:CompareSalesCounts(GS07DataSavedVariables)
+  internal:CompareSalesCounts(GS08DataSavedVariables)
+  internal:CompareSalesCounts(GS09DataSavedVariables)
+  internal:CompareSalesCounts(GS10DataSavedVariables)
+  internal:CompareSalesCounts(GS11DataSavedVariables)
+  internal:CompareSalesCounts(GS12DataSavedVariables)
+  internal:CompareSalesCounts(GS13DataSavedVariables)
+  internal:CompareSalesCounts(GS14DataSavedVariables)
+  internal:CompareSalesCounts(GS15DataSavedVariables)
+end
+
+-- /script LibGuildStore_Internal:CompareItemIds(GS00DataSavedVariables)
+-- loops over item IDs and reports duplicates
+function internal:CompareItemIds(dataset)
+  internal:dm("Debug", "CompareItemIds")
+  local saveData = dataset[internal.dataNamespace]
+  local itemIds = {}
+  for itemID, itemData in pairs(saveData) do
+    for itemIndex, itemIndexData in pairs(itemData) do
+      for key, sale in pairs(itemIndexData['sales']) do
+        if not itemIds[sale.id] then
+          itemIds[sale.id] = true
+        else
+          internal:dm("Debug", "Duplicate ID")
+        end
+      end
+    end
+  end
+  internal:dm("Debug", "CompareItemIds Done")
 end
 
 function internal:NonContiguousNonNilCount(tableObject)
@@ -83,13 +108,28 @@ function internal:IsValidItemLink(itemLink)
   -- itemLink should be the full link here
   local validLink = true
   local _, count  = string.gsub(itemLink, ':', ':')
-  if count ~= 22 then validLink = false end
+  if count ~= 22 then
+    internal:dm("Debug", "count ~= 22")
+    validLink = false
+  end
   local theIID      = GetItemLinkItemId(itemLink)
   local itemIdMatch = tonumber(string.match(itemLink, '|H.-:item:(.-):'))
-  if not theIID then validLink = false end
-  if theIID and (theIID ~= itemIdMatch) then validLink = false end
-  local itemlinkName = GetItemLinkName(itemLink)
-  if internal:is_empty_or_nil(itemlinkName) then validLink = false end
+  if not theIID then
+    internal:dm("Debug", "theIID was nil I guess?")
+    validLink = false
+  end
+  if theIID and (theIID ~= itemIdMatch) then
+    validLink = false
+    internal:dm("Debug", "theIID ~= itemIdMatch")
+  end
+  local itemlinkName = zo_strformat(SI_TOOLTIP_ITEM_NAME, GetItemLinkName(itemLink))
+  if internal:is_empty_or_nil(itemlinkName) then
+    internal:dm("Debug", "itemlinkName was empty or nil")
+    validLink = false
+  end
+  if not validLink then
+    internal:dm("Debug", MasterMerchant.ItemCodeText(itemLink))
+  end
   return validLink
 end
 
@@ -169,12 +209,19 @@ function internal:iterateOverSalesData(itemid, versionid, saleid, prefunc, loopf
       end
 
       if LibGuildStore_SavedVariables["updateAdditionalText"] then
-        local itemData = versiondata['sales']
+        local itemData = nil
+        for sid, sd in pairs(versiondata['sales']) do
+          if (sd ~= nil) and (type(sd) == 'table') then
+            itemData = sd
+            break
+          end
+        end
+
         if itemData then
           itemLink = internal:GetStringByIndex(internal.GS_CHECK_ITEMLINK, itemData["itemLink"])
           if itemLink then
             versiondata['itemAdderText'] = internal:AddSearchToItem(itemLink)
-            versiondata['itemDesc'] = GetItemLinkName(itemLink)
+            versiondata['itemDesc'] = zo_strformat(SI_TOOLTIP_ITEM_NAME, GetItemLinkName(itemLink))
           end
         end
       end
@@ -284,25 +331,6 @@ function internal:TruncateHistory()
   end
 
   local postfunc = function(extraData)
-    if extraData.deleteCount > 0 then
-      internal:CleanSavedVariables(GS00DataSavedVariables)
-      internal:CleanSavedVariables(GS01DataSavedVariables)
-      internal:CleanSavedVariables(GS02DataSavedVariables)
-      internal:CleanSavedVariables(GS03DataSavedVariables)
-      internal:CleanSavedVariables(GS04DataSavedVariables)
-      internal:CleanSavedVariables(GS05DataSavedVariables)
-      internal:CleanSavedVariables(GS06DataSavedVariables)
-      internal:CleanSavedVariables(GS07DataSavedVariables)
-      internal:CleanSavedVariables(GS08DataSavedVariables)
-      internal:CleanSavedVariables(GS09DataSavedVariables)
-      internal:CleanSavedVariables(GS10DataSavedVariables)
-      internal:CleanSavedVariables(GS11DataSavedVariables)
-      internal:CleanSavedVariables(GS12DataSavedVariables)
-      internal:CleanSavedVariables(GS13DataSavedVariables)
-      internal:CleanSavedVariables(GS14DataSavedVariables)
-      internal:CleanSavedVariables(GS15DataSavedVariables)
-    end
-
     internal:DatabaseBusy(false)
     internal:dm("Info", string.format(GetString(GS_TRUNCATE_COMPLETE), GetTimeStamp() - extraData.start, extraData.deleteCount))
   end
@@ -361,7 +389,7 @@ function internal:InitItemHistory()
           local guild                     = internal.guildItems[currentGuild]
           local _, firstsaledata          = next(versiondata.sales, nil)
           local firstsaledataItemLink = internal:GetStringByIndex(internal.GS_CHECK_ITEMLINK, firstsaledata.itemLink)
-          local searchDataDesc            = versiondata.itemDesc or GetItemLinkName(firstsaledataItemLink)
+          local searchDataDesc            = versiondata.itemDesc or zo_strformat(SI_TOOLTIP_ITEM_NAME, GetItemLinkName(firstsaledataItemLink))
           local searchDataAdder           = versiondata.itemAdderText or internal:AddSearchToItem(firstsaledataItemLink)
           local searchData                = searchDataDesc .. ' ' .. searchDataAdder
           guild:addSaleByDate(firstsaledataItemLink, saledata.timestamp, saledata.price, saledata.quant, false, false,
@@ -373,7 +401,7 @@ function internal:InitItemHistory()
           local guild                  = internal.myItems[currentGuild]
           local _, firstsaledata       = next(versiondata.sales, nil)
           local firstsaledataItemLink = internal:GetStringByIndex(internal.GS_CHECK_ITEMLINK, firstsaledata.itemLink)
-          local searchDataDesc            = versiondata.itemDesc or GetItemLinkName(firstsaledataItemLink)
+          local searchDataDesc            = versiondata.itemDesc or zo_strformat(SI_TOOLTIP_ITEM_NAME, GetItemLinkName(firstsaledataItemLink))
           local searchDataAdder           = versiondata.itemAdderText or internal:AddSearchToItem(firstsaledataItemLink)
           local searchData                = searchDataDesc .. ' ' .. searchDataAdder
           guild:addSaleByDate(firstsaledataItemLink, saledata.timestamp, saledata.price, saledata.quant, false, false,
@@ -479,7 +507,7 @@ function internal:indexHistoryTables()
       end
     else
       versiondata.itemAdderText = versiondata.itemAdderText or internal:AddSearchToItem(currentItemLink)
-      versiondata.itemDesc      = versiondata.itemDesc or GetItemLinkName(currentItemLink)
+      versiondata.itemDesc      = versiondata.itemDesc or zo_strformat(SI_TOOLTIP_ITEM_NAME, GetItemLinkName(currentItemLink))
       versiondata.itemIcon      = versiondata.itemIcon or GetItemLinkInfo(currentItemLink)
 
       temp[2]                   = currentBuyer or ''
@@ -576,12 +604,12 @@ function internal:CleanOutBad()
     local key, count   = string.gsub(currentItemLink, ':', ':')
     local theIID       = GetItemLinkItemId(currentItemLink)
     local itemIdMatch  = tonumber(string.match(currentItemLink, '|H.-:item:(.-):'))
-    local itemlinkName = GetItemLinkName(currentItemLink)
+    local itemlinkName = zo_strformat(SI_TOOLTIP_ITEM_NAME, GetItemLinkName(currentItemLink))
     --[[
     if LibGuildStore_SavedVariables["updateAdditionalText"] then
       local itemIndex = internal:MakeIndexFromLink(currentItemLink)
       sales_data[theIID][itemIndex]['itemAdderText'] = internal:AddSearchToItem(currentItemLink)
-      sales_data[theIID][itemIndex]['itemDesc'] = GetItemLinkName(currentItemLink)
+      sales_data[theIID][itemIndex]['itemDesc'] = zo_strformat(SI_TOOLTIP_ITEM_NAME, GetItemLinkName(currentItemLink))
     end
     ]]--
     -- /script internal:dm("Debug", zo_strformat(SI_TOOLTIP_ITEM_NAME, GetItemLinkName("|H0:item:69354:363:50:0:0:0:0:0:0:0:0:0:0:0:0:19:0:0:0:0:0|h|h")))
@@ -648,7 +676,11 @@ function internal:CleanOutBad()
         wasKiosk  = saledata.wasKiosk,
         id        = Id64ToString(saledata.id)
       }
-      internal:addToHistoryTables(theEvent)
+      local linkHash = internal:AddSalesTableData("itemLink", theEvent.itemLink)
+      local buyerHash = internal:AddSalesTableData("accountNames", theEvent.buyer)
+      local sellerHash = internal:AddSalesTableData("accountNames", theEvent.seller)
+      local guildHash = internal:AddSalesTableData("guildNames", theEvent.guild)
+      internal:addToHistoryTables(theEvent, linkHash, buyerHash, sellerHash, guildHash)
       extraData.moveCount          = extraData.moveCount + 1
       -- Remove it from it's current location
       versiondata['sales'][saleid] = nil
@@ -660,32 +692,12 @@ function internal:CleanOutBad()
 
   local postfunc = function(extraData)
 
-    extraData.muleIdCount = 0
-    if extraData.deleteCount > 0 then
-      extraData.muleIdCount = extraData.muleIdCount + internal:CleanMule(GS00DataSavedVariables[internal.dataNamespace])
-      extraData.muleIdCount = extraData.muleIdCount + internal:CleanMule(GS01DataSavedVariables[internal.dataNamespace])
-      extraData.muleIdCount = extraData.muleIdCount + internal:CleanMule(GS02DataSavedVariables[internal.dataNamespace])
-      extraData.muleIdCount = extraData.muleIdCount + internal:CleanMule(GS03DataSavedVariables[internal.dataNamespace])
-      extraData.muleIdCount = extraData.muleIdCount + internal:CleanMule(GS04DataSavedVariables[internal.dataNamespace])
-      extraData.muleIdCount = extraData.muleIdCount + internal:CleanMule(GS05DataSavedVariables[internal.dataNamespace])
-      extraData.muleIdCount = extraData.muleIdCount + internal:CleanMule(GS06DataSavedVariables[internal.dataNamespace])
-      extraData.muleIdCount = extraData.muleIdCount + internal:CleanMule(GS07DataSavedVariables[internal.dataNamespace])
-      extraData.muleIdCount = extraData.muleIdCount + internal:CleanMule(GS08DataSavedVariables[internal.dataNamespace])
-      extraData.muleIdCount = extraData.muleIdCount + internal:CleanMule(GS09DataSavedVariables[internal.dataNamespace])
-      extraData.muleIdCount = extraData.muleIdCount + internal:CleanMule(GS10DataSavedVariables[internal.dataNamespace])
-      extraData.muleIdCount = extraData.muleIdCount + internal:CleanMule(GS11DataSavedVariables[internal.dataNamespace])
-      extraData.muleIdCount = extraData.muleIdCount + internal:CleanMule(GS12DataSavedVariables[internal.dataNamespace])
-      extraData.muleIdCount = extraData.muleIdCount + internal:CleanMule(GS13DataSavedVariables[internal.dataNamespace])
-      extraData.muleIdCount = extraData.muleIdCount + internal:CleanMule(GS14DataSavedVariables[internal.dataNamespace])
-      extraData.muleIdCount = extraData.muleIdCount + internal:CleanMule(GS15DataSavedVariables[internal.dataNamespace])
-    end
-
     internal:dm("Info", string.format(GetString(GS_CLEANING_TIME_ELAPSED), GetTimeStamp() - extraData.start))
     internal:dm("Info", string.format(GetString(GS_CLEANING_BAD_REMOVED), (extraData.badItemLinkCount + extraData.deleteCount) - extraData.moveCount))
     internal:dm("Info", string.format(GetString(GS_CLEANING_REINDEXED), extraData.moveCount))
     internal:dm("Info", string.format(GetString(GS_CLEANING_WRONG_VERSION), extraData.versionCount))
     internal:dm("Info", string.format(GetString(GS_CLEANING_WRONG_ID), extraData.idCount))
-    internal:dm("Info", string.format(GetString(GS_CLEANING_WRONG_MULE), extraData.muleIdCount))
+    --internal:dm("Info", string.format(GetString(GS_CLEANING_WRONG_MULE), extraData.muleIdCount))
     internal:dm("Info", string.format(GetString(GS_CLEANING_STRINGS_CONVERTED), extraData.eventIdIsNumber))
     internal:dm("Info", string.format(GetString(GS_CLEANING_BAD_ITEMLINKS), extraData.badItemLinkCount))
 
@@ -720,24 +732,49 @@ function internal:CleanOutBad()
   LibGuildStore_SavedVariables["updateAdditionalText"] = false
 end
 
+local function FinalizePurge(count)
+    local LEQ = LibExecutionQueue:new()
+    if count > 0 then
+      --rebuild everything
+      local sr_index = {}
+      _G["LibGuildStore_SalesIndex"] = sr_index
+
+      internal.guildPurchases = {}
+      internal.guildSales     = {}
+      internal.guildItems     = {}
+      internal.myItems        = {}
+      LEQ:Add(function() internal:InitItemHistory() end, 'InitItemHistory')
+      LEQ:Add(function() internal:indexHistoryTables() end, 'indexHistoryTables')
+    end
+    LEQ:Add(function()
+      internal:DatabaseBusy(false);
+      internal:dm("Info", GetString(GS_REINDEXING_COMPLETE))
+    end, 'LetScanningContinue')
+    LEQ:Start()
+end
+
 function internal:PurgeDups()
+  local task = ASYNC:Create("PurgeDups")
+  task:Call(function(task) internal:dm("Info", GetString(GS_PURGING_DUPLICATES)) end)
 
   if not internal.isDatabaseBusy then
-    local LEQ = LibExecutionQueue:new()
-    internal:DatabaseBusy(true)
+    --task:Then(function(task) internal:dm("Debug", "Database ready") end)
+    task:Then(function(task) internal:DatabaseBusy(true) end)
 
     local start      = GetTimeStamp()
     local eventArray = { }
     local count      = 0
     local newSales
+    local deletedSales = { }
 
     --spin thru history and remove dups
-    for itemNumber, itemNumberData in pairs(sales_data) do
-      for itemIndex, itemData in pairs(itemNumberData) do
+    task:For(pairs(sales_data)):Do(function(itemNumber, itemNumberData)
+      --task:Then(function(task) internal:dm("Debug", itemNumber) end)
+      task:For(pairs(itemNumberData)):Do(function(itemIndex, itemData)
         if itemData['sales'] then
           local dup
           newSales = {}
-          for _, checking in pairs(itemData['sales']) do
+          task:For(pairs(itemData['sales'])):Do(function(key, checking)
             local currentItemLink = internal:GetStringByIndex(internal.GS_CHECK_ITEMLINK, checking.itemLink)
             local validLink = internal:IsValidItemLink(currentItemLink)
             dup             = false
@@ -761,38 +798,23 @@ function internal:PurgeDups()
             if not validLink then dup = true end
             if dup then
               -- Remove it by not putting it in the new list, but keep a count
+              table.insert(deletedSales, checking)
               count = count + 1
             else
               table.insert(newSales, checking)
               eventArray[checking.id] = true
             end
-          end
+          end)
           itemData['sales'] = newSales
         end
-      end
-    end
-    internal:dm("Verbose", internal:NonContiguousNonNilCount(eventArray, currentTask))
+      end)
+    end)
+    --task:Then(function(task) internal:dm("Verbose", internal:NonContiguousNonNilCount(eventArray)) end)
     eventArray = {} -- clear array
-
-    internal:dm("Info", string.format(GetString(GS_DUP_PURGE), GetTimeStamp() - start, count))
-    internal:dm("Info", GetString(GS_REINDEXING_EVERYTHING))
-    if count > 0 then
-      --rebuild everything
-      local sr_index = {}
-      _G["LibGuildStore_SalesIndex"] = sr_index
-
-      internal.guildPurchases = {}
-      internal.guildSales     = {}
-      internal.guildItems     = {}
-      internal.myItems        = {}
-      LEQ:Add(function() internal:InitItemHistory() end, 'InitItemHistory')
-      LEQ:Add(function() internal:indexHistoryTables() end, 'indexHistoryTables')
-    end
-    LEQ:Add(function()
-      internal:DatabaseBusy(false);
-      internal:dm("Info", GetString(GS_REINDEXING_COMPLETE))
-    end, 'LetScanningContinue')
-    LEQ:Start()
+    GS16DataSavedVariables["deletedSales"] = deletedSales
+    task:Then(function(task) internal:dm("Info", string.format(GetString(GS_DUP_PURGE), GetTimeStamp() - start, count)) end)
+    task:Then(function(task) internal:dm("Info", GetString(GS_REINDEXING_EVERYTHING)) end)
+    task:Finally(function(task) FinalizePurge(count) end)
   end
 end
 
@@ -858,10 +880,9 @@ function internal:ReferenceSales(otherData)
             end
             local _, first = next(versiondata.sales, nil)
             if first then
-              local firstItemLink = internal:GetStringByIndex(internal.GS_CHECK_ITEMLINK, first.itemLink)
-              sales_data[itemid][versionid].itemIcon      = GetItemLinkInfo(firstItemLink)
-              sales_data[itemid][versionid].itemAdderText = internal:AddSearchToItem(firstItemLink)
-              sales_data[itemid][versionid].itemDesc      = GetItemLinkName(firstItemLink)
+              sales_data[itemid][versionid].itemIcon      = GetItemLinkInfo(first.itemLink)
+              sales_data[itemid][versionid].itemAdderText = self.addedSearchToItem(first.itemLink)
+              sales_data[itemid][versionid].itemDesc      = GetItemLinkName(first.itemLink)
             end
           end
         else
@@ -897,6 +918,26 @@ function internal:RenewExtraData(otherData)
       end
     end
   end
+end
+
+function internal:VerifyItemLinks(hash, task)
+  local saveFile = _G[string.format("GS%02dDataSavedVariables", hash)]
+  local fileString = string.format("GS%02dDataSavedVariables", hash)
+  task:Then(function(task) internal:dm("Debug", string.format("VerifyItemLinks for: %s", fileString)) end)
+  task:Then(function(task) internal:dm("Debug", hash) end)
+  local savedVars = saveFile[internal.dataNamespace]
+
+  task:For(pairs(savedVars)):Do(function(itemID, itemIndex)
+    task:For(pairs(itemIndex)):Do(function(field, itemIndexData)
+      task:For(pairs(itemIndexData['sales'])):Do(function(sale, saleData)
+        local currentLink = internal:GetStringByIndex(internal.GS_CHECK_ITEMLINK, saleData.itemLink)
+        local currentHash = internal:MakeHashString(currentLink)
+        if currentHash ~= hash then
+          task:Then(function(task) internal:dm("Debug", "sale in wrong file") end)
+        end
+      end)
+    end)
+  end)
 end
 
 function internal:AddNewData(otherData)
@@ -993,8 +1034,45 @@ function internal:AddNewDataAllContainers()
   internal:AddNewData(GS15DataSavedVariables)
 end
 
+-- Add new data to concatanated data array
+-- /script LibGuildStore_Internal:VerifyAllItemLinks()
+function internal:VerifyAllItemLinks()
+  local task = ASYNC:Create("VerifyAllItemLinks")
+  task:Call(function(task) internal:DatabaseBusy(true) end)
+      :Then(function(task) internal:VerifyItemLinks(00, task) end)
+      :Then(function(task) internal:VerifyItemLinks(01, task) end)
+      :Then(function(task) internal:VerifyItemLinks(02, task) end)
+      :Then(function(task) internal:VerifyItemLinks(03, task) end)
+      :Then(function(task) internal:VerifyItemLinks(04, task) end)
+      :Then(function(task) internal:VerifyItemLinks(05, task) end)
+      :Then(function(task) internal:VerifyItemLinks(06, task) end)
+      :Then(function(task) internal:VerifyItemLinks(07, task) end)
+      :Then(function(task) internal:VerifyItemLinks(08, task) end)
+      :Then(function(task) internal:VerifyItemLinks(09, task) end)
+      :Then(function(task) internal:VerifyItemLinks(10, task) end)
+      :Then(function(task) internal:VerifyItemLinks(11, task) end)
+      :Then(function(task) internal:VerifyItemLinks(12, task) end)
+      :Then(function(task) internal:VerifyItemLinks(13, task) end)
+      :Then(function(task) internal:VerifyItemLinks(14, task) end)
+      :Then(function(task) internal:VerifyItemLinks(15, task) end)
+      :Then(function(task) internal:dm("Debug", "VerifyAllItemLinks Done") end)
+      :Finally(function(task) internal:DatabaseBusy(false) end)
+end
+
 function internal:DatabaseBusy(start)
   internal.isDatabaseBusy = start
+  --[[
+  if start then
+    for i = 1, GetNumGuilds() do
+      local guildId = GetGuildId(i)
+      internal.LibHistoireListener[guildId]:Stop()
+      internal.LibHistoireListener[guildId] = {}
+    end
+  end
+  if not start then
+    internal:SetupListenerLibHistoire()
+  end
+  ]]--
   if not MasterMerchant then return end
 
   MasterMerchantResetButton:SetEnabled(not start)

@@ -1,6 +1,7 @@
 local lib = _G["LibGuildStore"]
 local internal = _G["LibGuildStore_Internal"]
 local sales_data = _G["LibGuildStore_SalesData"]
+local listings_data = _G["LibGuildStore_ListingsData"]
 local sr_index = _G["LibGuildStore_SalesIndex"]
 local LAM                       = LibAddonMenu2
 

@@ -2,7 +2,14 @@ local libName, libVersion = "LibGuildStore", 100
 local lib = {}
 local internal = {}
 local sales_data = {}
+local listings_data = {}
 local sr_index = {}
+_G["LibGuildStore"] = lib
+_G["LibGuildStore_Internal"] = internal
+_G["LibGuildStore_SalesData"] = sales_data
+_G["LibGuildStore_ListingsData"] = listings_data
+_G["LibGuildStore_SalesIndex"] = sr_index
+
 lib.libName = libName
 lib.libVersion = libVersion
 
@@ -177,8 +184,3 @@ internal.defaults = {
   minimalIndexing = false,
   useSalesHistory = false,
 }
-
-_G["LibGuildStore"] = lib
-_G["LibGuildStore_Internal"] = internal
-_G["LibGuildStore_SalesData"] = sales_data
-_G["LibGuildStore_SalesIndex"] = sr_index

@@ -1,6 +1,7 @@
 local lib = _G["LibGuildStore"]
 local internal = _G["LibGuildStore_Internal"]
 local sales_data = _G["LibGuildStore_SalesData"]
+local listings_data = _G["LibGuildStore_ListingsData"]
 local sr_index = _G["LibGuildStore_SalesIndex"]
 local LGH = LibHistoire
 
@@ -55,12 +56,12 @@ end
 
 -- uses mod to determine which save files to use
 function internal:MakeHashString(itemLink)
-  if not internal:IsValidItemLink(itemLink) then
-    internal:dm("Debug", "itemLink invalid")
+  name = string.lower(zo_strformat(SI_TOOLTIP_ITEM_NAME, GetItemLinkName(itemLink)))
+  local hash = 0
+  for c in string.gmatch(name, '.') do
+    if c then hash = hash + string.byte(c) end
   end
-  name = string.lower(GetItemLinkName(itemLink))
-  local hash = HashString(name) % 16
-  return hash
+  return hash % 16
 end
 
 local function GetLevelAndCPRequirementFromItemLink(itemLink)
@@ -213,17 +214,21 @@ function internal:BuildGuildNameLookup()
   end
 end
 
-function internal:InitGuildStoreData(hash, identifier)
+function internal:InitGuildStoreData(hash, identifier, itemLink)
+  local hashVerify = internal:MakeHashString(itemLink)
+  if hash ~= hashVerify then internal:dm("Debug", "There is a hash issue") end
   local dataTable = _G[string.format("GS%02dDataSavedVariables", hash)]
   local savedVars = dataTable[internal.dataNamespace]
   savedVars[identifier] = {}
   return savedVars
 end
 
-function internal:SetGuildStoreData(hash)
-  local dataTable = _G[string.format("GS%02dDataSavedVariables", hash)]
-  local savedVars = dataTable[internal.dataNamespace]
-  return savedVars
+function internal:SetGuildStoreData(itemLink, theIID)
+  local hash = internal:MakeHashString(itemLink)
+  local dataTable   = _G[string.format("GS%02dDataSavedVariables", hash)]
+  local savedVars   = dataTable[internal.dataNamespace]
+  savedVars[theIID] = {}
+  return savedVars[theIID]
 end
 
 function internal:setStorageTableData(key)
@@ -264,41 +269,28 @@ function internal:CheckForDuplicateUniqueId(purchasesData, itemUniqueId)
   return dupe
 end
 
-function internal:CheckForDuplicate(itemLink, uniqueId)
-  local dupe = false
+function internal:CheckForDuplicate(itemLink, eventID)
   --[[ we need to be able to calculate theIID and itemIndex
   when not used with addToHistoryTables() event though
   the function will calculate them.
   ]]--
-  --[[
-  local indexUse = internal:GetIndexByString(key, itemLink)
-  local itemLinkToUse = internal:GetStringByIndex(key, indexUse)
-  if not itemLinkToUse then
-    itemLinkToUse = itemLink
-  end
-  ]]--
   local theIID = GetItemLinkItemId(itemLink)
-  if theIID == nil then return end
+  if theIID == nil or theIID == 0 then return end
   local itemIndex = internal:MakeIndexFromLink(itemLink)
-  local hash = internal:MakeHashString(itemLink)
-  local saveData = internal:SetGuildStoreData(hash)
-  if not saveData then return dupe end
-  if not saveData[theIID] then return dupe end
-  if not saveData[theIID][itemIndex] then return dupe end
-  if not saveData[theIID][itemIndex]['sales'] then return dupe end
-  --TODO Check GS Data for theIID bug in CheckForDuplicate
 
-  for k, v in pairs(saveData[theIID][itemIndex]['sales']) do
-    if v.id == uniqueId then
-      dupe = true
-      break
+  if sales_data[theIID] and sales_data[theIID][itemIndex] then
+    for k, v in pairs(sales_data[theIID][itemIndex]['sales']) do
+      if v.id == eventID then
+        return true
+      end
     end
   end
-  return dupe
+  return false
 end
 
 -- And here we add a new item
 function internal:addToHistoryTables(theEvent, linkHash, buyerHash, sellerHash, guildHash)
+
   -- DEBUG  Stop Adding
   --do return end
 
@@ -339,30 +331,28 @@ function internal:addToHistoryTables(theEvent, linkHash, buyerHash, sellerHash, 
   },
   ]]--
 
+  -- first add new data looks to their tables
+  --[[
+  local linkHash   = MasterMerchant:AddSalesTableData("ItemLink", theEvent.itemLink)
+  local buyerHash  = MasterMerchant:AddSalesTableData("AccountNames", theEvent.buyer)
+  local sellerHash = MasterMerchant:AddSalesTableData("AccountNames", theEvent.seller)
+  local guildHash  = MasterMerchant:AddSalesTableData("GuildNames", theEvent.guild)
+  ]]--
+
   --[[The quality effects itemIndex although the ID from the
   itemLink may be the same. We will keep them separate.
   ]]--
-  local itemIndex = internal:MakeIndexFromLink(theEvent.itemLink)
-  --[[theIID is used in the sr_index so define it here.
+  local itemIndex  = internal:MakeIndexFromLink(theEvent.itemLink)
+  --[[theIID is used in the SRIndex so define it here.
   ]]--
-  local theIID = GetItemLinkItemId(theEvent.itemLink)
-  local idToMatch = string.match(theEvent.itemLink, '|H.-:item:(.-):')
-  if tonumber(theIID) ~= tonumber(idToMatch) or theIID == 0 then
-    -- internal:dm("Warn", string.format("theIID %s did not equal idToMatch %s in addToHistoryTables (Data) for %s and eventID %s", theIID, idToMatch, theEvent.itemLink, theEvent.id))
-  end
-  if theIID == nil then return end
-  local hash = internal:MakeHashString(theEvent.itemLink)
+  local theIID     = GetItemLinkItemId(theEvent.itemLink)
+  if theIID == nil or theIID == 0 then return end
+
   --[[If the ID from the itemLink doesn't exist determine which
   file or container it will belong to using SetGuildStoreData()
-
-  IMPORTANT NOTE:
-  saveData is for the saved variables
-  sales_data is for the aggregate sales in memory
   ]]--
-  saveData = internal:SetGuildStoreData(hash)
-
-  if not saveData[theIID] then
-    saveData = internal:InitGuildStoreData(hash, theIID)
+  if not sales_data[theIID] then
+    sales_data[theIID] = internal:SetGuildStoreData(theEvent.itemLink, theIID)
   end
 
   local insertedIndex = 1
@@ -376,23 +366,23 @@ function internal:addToHistoryTables(theEvent, linkHash, buyerHash, sellerHash, 
   newEvent.seller = sellerHash
   newEvent.guild = guildHash
 
-  if saveData[theIID][itemIndex] then
-    local nextLocation = #saveData[theIID][itemIndex]['sales'] + 1
-    searchItemDesc = saveData[theIID][itemIndex].itemDesc
-    searchItemAdderText = saveData[theIID][itemIndex].itemAdderText
-    if saveData[theIID][itemIndex]['sales'][nextLocation] == nil then
-      table.insert(saveData[theIID][itemIndex]['sales'], nextLocation, newEvent)
+  if sales_data[theIID][itemIndex] then
+    local nextLocation = #sales_data[theIID][itemIndex]['sales'] + 1
+    searchItemDesc = sales_data[theIID][itemIndex].itemDesc
+    searchItemAdderText = sales_data[theIID][itemIndex].itemAdderText
+    if sales_data[theIID][itemIndex]['sales'][nextLocation] == nil then
+      table.insert(sales_data[theIID][itemIndex]['sales'], nextLocation, newEvent)
       insertedIndex = nextLocation
     else
-      table.insert(saveData[theIID][itemIndex]['sales'], newEvent)
-      insertedIndex = #saveData[theIID][itemIndex]['sales']
+      table.insert(sales_data[theIID][itemIndex]['sales'], newEvent)
+      insertedIndex = #sales_data[theIID][itemIndex]['sales']
     end
   else
-    searchItemDesc = GetItemLinkName(theEvent.itemLink)
+    searchItemDesc = zo_strformat(SI_TOOLTIP_ITEM_NAME, GetItemLinkName(theEvent.itemLink))
     searchItemAdderText = internal:AddSearchToItem(theEvent.itemLink)
-    if saveData[theIID][itemIndex] == nil then saveData[theIID][itemIndex] = {} end
-    if saveData[theIID][itemIndex]['sales'] == nil then saveData[theIID][itemIndex]['sales'] = {} end
-    saveData[theIID][itemIndex] = {
+    if sales_data[theIID][itemIndex] == nil then sales_data[theIID][itemIndex] = {} end
+    if sales_data[theIID][itemIndex]['sales'] == nil then sales_data[theIID][itemIndex]['sales'] = {} end
+    sales_data[theIID][itemIndex] = {
       itemIcon      = GetItemLinkInfo(theEvent.itemLink),
       itemAdderText = searchItemAdderText,
       itemDesc      = searchItemDesc,
@@ -422,8 +412,7 @@ function internal:addToHistoryTables(theEvent, linkHash, buyerHash, sellerHash, 
   if isSelfSale then
     guild                                  = internal.myItems[theEvent.guild] or MMGuild:new(theEvent.guild)
     internal.myItems[theEvent.guild] = guild;
-    guild:addSaleByDate(theEvent.itemLink, theEvent.timestamp, theEvent.price, theEvent.quant, false, nil,
-      adderDescConcat)
+    guild:addSaleByDate(theEvent.itemLink, theEvent.timestamp, theEvent.price, theEvent.quant, false, nil, adderDescConcat)
   end
 
   local temp       = { 'b', '', ' s', '', ' ', '', ' ', '', ' ', '', ' ', '' }
@@ -471,7 +460,7 @@ function internal:SetupListener(guildId)
     internal.LibHistoireListener[guildId]:SetAfterEventId(lastReceivedEventID)
   end
   internal.LibHistoireListener[guildId]:SetEventCallback(function(eventType, eventId, eventTime, p1, p2, p3, p4, p5, p6)
-    if eventType == GUILD_EVENT_ITEM_SOLD then
+    if eventType == GUILD_EVENT_ITEM_SOLD and not internal.isDatabaseBusy then
       if not lastReceivedEventID or CompareId64s(eventId, lastReceivedEventID) > 0 then
         LibGuildStore_SavedVariables["lastReceivedEventID"][guildId] = Id64ToString(eventId)
         lastReceivedEventID = eventId
@@ -558,10 +547,13 @@ function internal:addListing(listing, addBuyer)
   local buyerHash = internal:AddSalesTableData("accountNames", GetDisplayName())
   local sellerHash = internal:AddSalesTableData("accountNames", listing.Seller)
   local guildHash = internal:AddSalesTableData("guildNames", listing.Guild)
-  saveData = internal:SetGuildStoreData(hash, listing.itemUniqueId)
 
-  if not saveData then
-    saveData = internal:CheckForDuplicateUniqueId(hash, listing.itemUniqueId)
+  local itemIndex  = internal:MakeIndexFromLink(listing.itemLink)
+  local theIID     = GetItemLinkItemId(listing.itemLink)
+  if theIID == nil or theIID == 0 then return end
+
+  if not listings_data[theIID] then
+    listings_data[theIID] = internal:SetGuildStoreData(listing.itemLink, theIID)
   end
 
   local duplicate = internal:CheckForDuplicateUniqueId(saveData, itemUniqueId)

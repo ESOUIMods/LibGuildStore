@@ -1,7 +1,7 @@
 local libName, libVersion = "GS15Data", 100
 local lib = {}
 lib.libName = libName
-lib.defaults = { 
+lib.defaults = {
   ['datana'] = {},
   ['dataeu'] = {},
   ["listingsna"] = {},
