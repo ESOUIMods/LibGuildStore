@@ -4,11 +4,15 @@ local internal = {}
 local sales_data = {}
 local listings_data = {}
 local sr_index = {}
+local mm_sales_data = {}
+local att_sales_data = {}
 _G["LibGuildStore"] = lib
 _G["LibGuildStore_Internal"] = internal
 _G["LibGuildStore_SalesData"] = sales_data
 _G["LibGuildStore_ListingsData"] = listings_data
 _G["LibGuildStore_SalesIndex"] = sr_index
+_G["LibGuildStore_MM_SalesData"] = mm_sales_data
+_G["LibGuildStore_ATT_SalesData"] = att_sales_data
 
 lib.libName = libName
 lib.libVersion = libVersion
@@ -184,3 +188,10 @@ internal.defaults = {
   minimalIndexing = false,
   useSalesHistory = false,
 }
+
+--[[ sr_index, originally SRIndex is an inverted indexe of the
+ScanResults table. Each key is a word found in one of the sales
+items' searched fields (buyer, guild, item name) and a table
+of the sales_data, originally SalesData indexes that contain
+that word.
+]]--

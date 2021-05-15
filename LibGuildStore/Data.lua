@@ -228,7 +228,7 @@ function internal:SetGuildStoreData(itemLink, theIID)
   local dataTable   = _G[string.format("GS%02dDataSavedVariables", hash)]
   local savedVars   = dataTable[internal.dataNamespace]
   savedVars[theIID] = {}
-  return savedVars[theIID]
+  return savedVars[theIID], hash
 end
 
 function internal:setStorageTableData(key)
@@ -289,7 +289,7 @@ function internal:CheckForDuplicate(itemLink, eventID)
 end
 
 -- And here we add a new item
-function internal:addToHistoryTables(theEvent, linkHash, buyerHash, sellerHash, guildHash)
+function internal:addToHistoryTables(theEvent)
 
   -- DEBUG  Stop Adding
   --do return end
@@ -332,12 +332,10 @@ function internal:addToHistoryTables(theEvent, linkHash, buyerHash, sellerHash, 
   ]]--
 
   -- first add new data looks to their tables
-  --[[
-  local linkHash   = MasterMerchant:AddSalesTableData("ItemLink", theEvent.itemLink)
-  local buyerHash  = MasterMerchant:AddSalesTableData("AccountNames", theEvent.buyer)
-  local sellerHash = MasterMerchant:AddSalesTableData("AccountNames", theEvent.seller)
-  local guildHash  = MasterMerchant:AddSalesTableData("GuildNames", theEvent.guild)
-  ]]--
+  local linkHash = internal:AddSalesTableData("itemLink", theEvent.itemLink)
+  local buyerHash = internal:AddSalesTableData("accountNames", theEvent.buyer)
+  local sellerHash = internal:AddSalesTableData("accountNames", theEvent.seller)
+  local guildHash = internal:AddSalesTableData("guildNames", theEvent.guild)
 
   --[[The quality effects itemIndex although the ID from the
   itemLink may be the same. We will keep them separate.
@@ -346,14 +344,16 @@ function internal:addToHistoryTables(theEvent, linkHash, buyerHash, sellerHash, 
   --[[theIID is used in the SRIndex so define it here.
   ]]--
   local theIID     = GetItemLinkItemId(theEvent.itemLink)
-  if theIID == nil or theIID == 0 then return end
+  if theIID == nil or theIID == 0 then return false end
 
   --[[If the ID from the itemLink doesn't exist determine which
   file or container it will belong to using SetGuildStoreData()
   ]]--
+  local hashUsed = "alreadyExisted"
   if not sales_data[theIID] then
-    sales_data[theIID] = internal:SetGuildStoreData(theEvent.itemLink, theIID)
+    sales_data[theIID], hashUsed = internal:SetGuildStoreData(theEvent.itemLink, theIID)
   end
+  local expectedHash = internal:MakeHashString(theEvent.itemLink)
 
   local insertedIndex = 1
 
@@ -389,6 +389,7 @@ function internal:addToHistoryTables(theEvent, linkHash, buyerHash, sellerHash, 
       sales         = { newEvent } }
     --internal:dm("Debug", newEvent)
   end
+  sales_data[theIID][itemIndex].wasAltered = true
 
   -- this section adds the sales to the lists for the MM window
   local guild
@@ -516,16 +517,12 @@ function internal:SetupListener(guildId)
         id        = Id64ToString(eventId)
       }
       theEvent.wasKiosk = (internal.guildMemberInfo[guildId][string.lower(theEvent.buyer)] == nil)
-      local linkHash = internal:AddSalesTableData("itemLink", theEvent.itemLink)
-      local buyerHash = internal:AddSalesTableData("accountNames", theEvent.buyer)
-      local sellerHash = internal:AddSalesTableData("accountNames", theEvent.seller)
-      local guildHash = internal:AddSalesTableData("guildNames", theEvent.guild)
 
       local daysOfHistoryToKeep = GetTimeStamp() - internal.oneDayInSeconds * LibGuildStore_SavedVariables["historyDepth"]
       if (theEvent.timestamp > daysOfHistoryToKeep) then
         local duplicate = internal:CheckForDuplicate(theEvent.itemLink, theEvent.id)
         if not duplicate then
-          added = internal:addToHistoryTables(theEvent, linkHash, buyerHash, sellerHash, guildHash)
+          added = internal:addToHistoryTables(theEvent)
         end
         -- (doAlert and (internal.systemSavedVariables.showChatAlerts or internal.systemSavedVariables.showAnnounceAlerts))
         if added and string.lower(theEvent.seller) == thePlayer then
@@ -533,8 +530,8 @@ function internal:SetupListener(guildId)
           table.insert(internal.alertQueue[theEvent.guild], theEvent)
         end
         if added then
-          --MasterMerchant:PostScanParallel(guildName, true)
-          --MasterMerchant:SetMasterMerchantWindowDirty()
+          MasterMerchant:PostScanParallel(guildName, true)
+          MasterMerchant:SetMasterMerchantWindowDirty()
         end
       end
     end
@@ -553,7 +550,7 @@ function internal:addListing(listing, addBuyer)
   if theIID == nil or theIID == 0 then return end
 
   if not listings_data[theIID] then
-    listings_data[theIID] = internal:SetGuildStoreData(listing.itemLink, theIID)
+    listings_data[theIID], hashUsed = internal:SetGuildStoreData(listing.itemLink, theIID)
   end
 
   local duplicate = internal:CheckForDuplicateUniqueId(saveData, itemUniqueId)
@@ -622,4 +619,52 @@ function internal:processAwesomeGuildStore(itemDatabase)
     internal:addListing(CurrentPurchase)
     ]]--
     --ShoppingList.List:Refresh()
+end
+
+-- Handle the reset button - clear out the search and scan tables,
+-- and set the time of the last scan to nil, then force a scan.
+function internal:DoReset()
+  internal:dm("Info", "DoReset is not ready yet")
+  local notReady = true
+  if notReady then return end
+
+  local sales_data = {}
+  local sr_index = {}
+  _G["LibGuildStore_SalesData"] = sales_data
+  _G["LibGuildStore_SalesIndex"] = sr_index
+
+  MM00Data.savedVariables.SalesData = {}
+  MM01Data.savedVariables.SalesData = {}
+  MM02Data.savedVariables.SalesData = {}
+  MM03Data.savedVariables.SalesData = {}
+  MM04Data.savedVariables.SalesData = {}
+  MM05Data.savedVariables.SalesData = {}
+  MM06Data.savedVariables.SalesData = {}
+  MM07Data.savedVariables.SalesData = {}
+  MM08Data.savedVariables.SalesData = {}
+  MM09Data.savedVariables.SalesData = {}
+  MM10Data.savedVariables.SalesData = {}
+  MM11Data.savedVariables.SalesData = {}
+  MM12Data.savedVariables.SalesData = {}
+  MM13Data.savedVariables.SalesData = {}
+  MM14Data.savedVariables.SalesData = {}
+  MM15Data.savedVariables.SalesData = {}
+
+  self.guildPurchases               = {}
+  self.guildSales                   = {}
+  self.guildItems                   = {}
+  self.myItems                      = {}
+  if MasterMerchantGuildWindow:IsHidden() then
+    internal.scrollList:RefreshData()
+  else
+    internal.guildScrollList:RefreshData()
+  end
+  self:setScanning(false)
+  internal:dm("Info", internal:concat(GetString(MM_APP_MESSAGE_NAME), GetString(SK_RESET_DONE)))
+  internal:dm("Info", internal:concat(GetString(MM_APP_MESSAGE_NAME), GetString(SK_REFRESH_START)))
+  self.veryFirstScan = true
+  -- self:ScanStoresParallel(true)
+  --[[needs updating so start and stop the listener then
+  init everyting
+  ]]--
 end

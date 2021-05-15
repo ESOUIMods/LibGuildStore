@@ -115,6 +115,11 @@ function internal:LibAddonInit()
       helpUrl = "https://esouimods.github.io/3-master_merchant.html#DebugOptions",
     },
     [11] = {
+      type = "description",
+      title = "My Description",
+      text = [[Refresh LibHistoire Database.]]
+    },
+    [12] = {
       type = "button",
       name = GetString(GS_REFRESH_LIBHISTOIRE_NAME),
       tooltip = GetString(GS_REFRESH_LIBHISTOIRE_TIP),

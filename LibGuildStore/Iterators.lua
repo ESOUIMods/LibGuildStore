@@ -3,6 +3,7 @@ local internal = _G["LibGuildStore_Internal"]
 local sales_data = _G["LibGuildStore_SalesData"]
 local listings_data = _G["LibGuildStore_ListingsData"]
 local sr_index = _G["LibGuildStore_SalesIndex"]
+local att_sales_data = _G["LibGuildStore_ATT_SalesData"]
 local ASYNC = LibAsync
 local LGH = LibHistoire
 
@@ -14,36 +15,24 @@ iterateOverSalesData.
 ----- Helpers                      -----
 ----------------------------------------
 
-function internal:CompareSalesCounts(dataset)
-  local saveData = dataset[internal.dataNamespace]
-  for itemID, itemData in pairs(saveData) do
+-- /script LibGuildStore_Internal:CompareSalesIds(GS00DataSavedVariables)
+-- loops over item IDs and reports duplicates
+function internal:CompareSalesIds()
+  internal:dm("Debug", "CompareSalesIds")
+  local mmsaveData = dataset[internal.dataNamespace]
+  local itemIds = {}
+  for itemID, itemData in pairs(att_sales_data) do
     for itemIndex, itemIndexData in pairs(itemData) do
-      if itemIndexData.wasAltered then
-        if internal:NonContiguousNonNilCount(itemIndexData['sales']) ~= internal:NonContiguousNonNilCount(sales_data[itemID][itemIndex]['sales']) then
-          internal:dm("Debug", "Sales Counts Not Equal")
+      for key, sale in pairs(itemIndexData['sales']) do
+        if not itemIds[sale.id] then
+          itemIds[sale.id] = true
+        else
+          internal:dm("Debug", "Duplicate ID")
         end
       end
     end
   end
-end
-
-function internal:CompareAllSalesCounts()
-  internal:CompareSalesCounts(GS00DataSavedVariables)
-  internal:CompareSalesCounts(GS01DataSavedVariables)
-  internal:CompareSalesCounts(GS02DataSavedVariables)
-  internal:CompareSalesCounts(GS03DataSavedVariables)
-  internal:CompareSalesCounts(GS04DataSavedVariables)
-  internal:CompareSalesCounts(GS05DataSavedVariables)
-  internal:CompareSalesCounts(GS06DataSavedVariables)
-  internal:CompareSalesCounts(GS07DataSavedVariables)
-  internal:CompareSalesCounts(GS08DataSavedVariables)
-  internal:CompareSalesCounts(GS09DataSavedVariables)
-  internal:CompareSalesCounts(GS10DataSavedVariables)
-  internal:CompareSalesCounts(GS11DataSavedVariables)
-  internal:CompareSalesCounts(GS12DataSavedVariables)
-  internal:CompareSalesCounts(GS13DataSavedVariables)
-  internal:CompareSalesCounts(GS14DataSavedVariables)
-  internal:CompareSalesCounts(GS15DataSavedVariables)
+  internal:dm("Debug", "CompareSalesIds Done")
 end
 
 -- /script LibGuildStore_Internal:CompareItemIds(GS00DataSavedVariables)
@@ -676,11 +665,7 @@ function internal:CleanOutBad()
         wasKiosk  = saledata.wasKiosk,
         id        = Id64ToString(saledata.id)
       }
-      local linkHash = internal:AddSalesTableData("itemLink", theEvent.itemLink)
-      local buyerHash = internal:AddSalesTableData("accountNames", theEvent.buyer)
-      local sellerHash = internal:AddSalesTableData("accountNames", theEvent.seller)
-      local guildHash = internal:AddSalesTableData("guildNames", theEvent.guild)
-      internal:addToHistoryTables(theEvent, linkHash, buyerHash, sellerHash, guildHash)
+      internal:addToHistoryTables(theEvent)
       extraData.moveCount          = extraData.moveCount + 1
       -- Remove it from it's current location
       versiondata['sales'][saleid] = nil
@@ -881,8 +866,8 @@ function internal:ReferenceSales(otherData)
             local _, first = next(versiondata.sales, nil)
             if first then
               sales_data[itemid][versionid].itemIcon      = GetItemLinkInfo(first.itemLink)
-              sales_data[itemid][versionid].itemAdderText = self.addedSearchToItem(first.itemLink)
-              sales_data[itemid][versionid].itemDesc      = GetItemLinkName(first.itemLink)
+              sales_data[itemid][versionid].itemAdderText = internal:AddSearchToItem(first.itemLink)
+              sales_data[itemid][versionid].itemDesc      = zo_strformat(SI_TOOLTIP_ITEM_NAME, GetItemLinkName(first.itemLink))
             end
           end
         else

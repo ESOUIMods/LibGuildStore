@@ -111,6 +111,7 @@ local function SetupDefaults()
   if LibGuildStore_SavedVariables["showIndexingSummary"] == nil then LibGuildStore_SavedVariables["showIndexingSummary"] = internal.defaults.showIndexingSummary end
   if LibGuildStore_SavedVariables["minimalIndexing"] == nil then LibGuildStore_SavedVariables["minimalIndexing"] = internal.defaults.minimalIndexing end
   if LibGuildStore_SavedVariables["useSalesHistory"] == nil then LibGuildStore_SavedVariables["useSalesHistory"] = internal.defaults.useSalesHistory end
+
   SetNamespace()
 end
 
@@ -128,6 +129,8 @@ local function SetupData()
   LEQ:Add(function() BuildLookupTables() end, 'BuildLookupTables')
   LEQ:Add(function() internal:dm("Info", "LibGuildStore Initializing") end, "LibGuildStoreInitializing")
   LEQ:Add(function() internal:ReferenceSalesAllContainers() end, 'ReferenceSalesAllContainers')
+  LEQ:Add(function() internal:ReferenceAllMMSales() end, 'ReferenceAllMMSales')
+  LEQ:Add(function() internal:ReferenceAllATTSales() end, 'ReferenceAllATTSales')
   LEQ:Add(function() internal:AddNewDataAllContainers() end, 'AddNewDataAllContainers')
   LEQ:Add(function() internal:TruncateHistory() end, 'TruncateHistory')
   LEQ:Add(function() internal:RenewExtraDataAllContainers() end, 'RenewExtraDataAllContainers')
@@ -278,6 +281,8 @@ function internal.Slash(allArgs)
     internal:dm("Info", GetString(GS_HELP_DUPS))
     internal:dm("Info", GetString(GS_HELP_CLEAN))
     internal:dm("Info", GetString(GS_HELP_SLIDE))
+    internal:dm("Info", GetString(GS_HELP_MMIMPORT))
+    internal:dm("Info", GetString(GS_HELP_ATTIMPORT))
     return
   end
   if args == 'dups' or args == 'stilldups' then
@@ -326,14 +331,22 @@ function internal.Slash(allArgs)
     internal:dm("Info", GetString(GS_CLEAN_UPDATE_DESC))
     return
   end
-  if args == 'import' then
+  if args == 'mmimport' then
     if internal.isDatabaseBusy then
       internal:dm("Info", "LibGuildStore is busy")
       return
     end
-    internal:dm("Info", "Import MasterMerchant/ATT Sales")
-    internal:ImportAllMasterMerchantSales()
-    internal:ImportAllATTSales()
+    internal:dm("Info", "Import MasterMerchant Sales")
+    internal:ImportMasterMerchantSales()
+    return
+  end
+  if args == 'attimport' then
+    if internal.isDatabaseBusy then
+      internal:dm("Info", "LibGuildStore is busy")
+      return
+    end
+    internal:dm("Info", "Import ATT Sales")
+    internal:ImportATTSales()
     return
   end
   args = ""
