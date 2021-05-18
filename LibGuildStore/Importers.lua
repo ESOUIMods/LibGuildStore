@@ -1,10 +1,10 @@
-local lib = _G["LibGuildStore"]
-local internal = _G["LibGuildStore_Internal"]
-local sr_index = _G["LibGuildStore_SalesIndex"]
-local mm_sales_data = _G["LibGuildStore_MM_SalesData"]
+local lib            = _G["LibGuildStore"]
+local internal       = _G["LibGuildStore_Internal"]
+local sr_index       = _G["LibGuildStore_SalesIndex"]
+local mm_sales_data  = _G["LibGuildStore_MM_SalesData"]
 local att_sales_data = _G["LibGuildStore_ATT_SalesData"]
 
-local ASYNC = LibAsync
+local ASYNC          = LibAsync
 
 ----------------------------------------
 ----- iterateOverSalesData         -----
@@ -35,19 +35,20 @@ function internal:ImportMasterMerchantSales()
   end
 
   local postfunc = function(extraData)
-    internal:dm("Info", string.format("%s seconds to process %s records", GetTimeStamp() - extraData.start, extraData.totalSales))
+    internal:dm("Info",
+      string.format("%s seconds to process %s records", GetTimeStamp() - extraData.start, extraData.totalSales))
 
     local LEQ = LibExecutionQueue:new()
     if extraData.totalSales > 0 then
       internal:dm("Info", GetString(GS_REINDEXING_EVERYTHING))
       --rebuild everything
-      local sr_index = {}
+      local sr_index                 = {}
       _G["LibGuildStore_SalesIndex"] = sr_index
 
-      internal.guildPurchases = {}
-      internal.guildSales     = {}
-      internal.guildItems     = {}
-      internal.myItems        = {}
+      internal.guildPurchases        = {}
+      internal.guildSales            = {}
+      internal.guildItems            = {}
+      internal.myItems               = {}
       LEQ:Add(function() internal:RenewExtraDataAllContainers() end, 'RenewExtraDataAllContainers')
       LEQ:Add(function() internal:InitItemHistory() end, 'InitItemHistory')
       LEQ:Add(function() internal:indexHistoryTables() end, 'indexHistoryTables')
@@ -90,19 +91,20 @@ function internal:ImportATTSales()
   end
 
   local postfunc = function(extraData)
-    internal:dm("Info", string.format("%s seconds to process %s records", GetTimeStamp() - extraData.start, extraData.totalSales))
+    internal:dm("Info",
+      string.format("%s seconds to process %s records", GetTimeStamp() - extraData.start, extraData.totalSales))
 
     local LEQ = LibExecutionQueue:new()
     if extraData.totalSales > 0 then
       internal:dm("Info", GetString(GS_REINDEXING_EVERYTHING))
       --rebuild everything
-      local sr_index = {}
+      local sr_index                 = {}
       _G["LibGuildStore_SalesIndex"] = sr_index
 
-      internal.guildPurchases = {}
-      internal.guildSales     = {}
-      internal.guildItems     = {}
-      internal.myItems        = {}
+      internal.guildPurchases        = {}
+      internal.guildSales            = {}
+      internal.guildItems            = {}
+      internal.myItems               = {}
       LEQ:Add(function() internal:RenewExtraDataAllContainers() end, 'RenewExtraDataAllContainers')
       LEQ:Add(function() internal:InitItemHistory() end, 'InitItemHistory')
       LEQ:Add(function() internal:indexHistoryTables() end, 'indexHistoryTables')
@@ -171,7 +173,8 @@ function internal:IterateoverMMSalesData(itemid, versionid, saleid, prefunc, loo
           -- We've run out of time, wait and continue with next sale
           if saleid and (GetGameTimeMilliseconds() - checkTime) > extraData.checkMilliseconds then
             local LEQ = LibExecutionQueue:new()
-            LEQ:ContinueWith(function() internal:IterateoverMMSalesData(itemid, versionid, saleid, nil, loopfunc, postfunc,
+            LEQ:ContinueWith(function() internal:IterateoverMMSalesData(itemid, versionid, saleid, nil, loopfunc,
+              postfunc,
               extraData) end, nil)
             return
           end
@@ -198,7 +201,7 @@ function internal:IterateoverMMSalesData(itemid, versionid, saleid, prefunc, loo
 
       if extraData.wasAltered then
         versiondata["wasAltered"] = true
-        extraData.wasAltered = false
+        extraData.wasAltered      = false
       end
 
       -- Go onto the next Version
@@ -224,7 +227,7 @@ function internal:IterateoverMMSalesData(itemid, versionid, saleid, prefunc, loo
     end
 
     if (mm_sales_data[itemid] ~= nil and ((internal:NonContiguousNonNilCount(versionlist) < 1) or (type(itemid) ~= 'number'))) then
-      extraData.idCount      = (extraData.idCount or 0) + 1
+      extraData.idCount     = (extraData.idCount or 0) + 1
       mm_sales_data[itemid] = nil
     end
 
@@ -289,7 +292,8 @@ function internal:IterateoverATTSalesData(itemid, versionid, saleid, prefunc, lo
           -- We've run out of time, wait and continue with next sale
           if saleid and (GetGameTimeMilliseconds() - checkTime) > extraData.checkMilliseconds then
             local LEQ = LibExecutionQueue:new()
-            LEQ:ContinueWith(function() internal:IterateoverATTSalesData(itemid, versionid, saleid, nil, loopfunc, postfunc,
+            LEQ:ContinueWith(function() internal:IterateoverATTSalesData(itemid, versionid, saleid, nil, loopfunc,
+              postfunc,
               extraData) end, nil)
             return
           end
@@ -316,7 +320,7 @@ function internal:IterateoverATTSalesData(itemid, versionid, saleid, prefunc, lo
 
       if extraData.wasAltered then
         versiondata["wasAltered"] = true
-        extraData.wasAltered = false
+        extraData.wasAltered      = false
       end
 
       -- Go onto the next Version
@@ -402,7 +406,8 @@ function internal:ReferenceMMSales(otherData)
             if first then
               mm_sales_data[itemid][versionid].itemIcon      = GetItemLinkInfo(first.itemLink)
               mm_sales_data[itemid][versionid].itemAdderText = internal:AddSearchToItem(first.itemLink)
-              mm_sales_data[itemid][versionid].itemDesc      = zo_strformat(SI_TOOLTIP_ITEM_NAME, GetItemLinkName(first.itemLink))
+              mm_sales_data[itemid][versionid].itemDesc      = zo_strformat(SI_TOOLTIP_ITEM_NAME,
+                GetItemLinkName(first.itemLink))
             end
           end
         else
@@ -420,7 +425,7 @@ end
 ----- Reference ATT Sales Data      -----
 ----------------------------------------
 local idNumbers = {}
-local idData = {}
+local idData    = {}
 -- Bring seperate lists together we can still access the sales history all together
 function internal:ReferenceAllATTSales()
   if not ArkadiusTradeToolsSalesData01 then return end
@@ -451,28 +456,28 @@ function internal:ReferenceATTSales(otherData)
   else
     attMegaserver = "EU Megaserver"
   end
-  local savedVars = otherData[attMegaserver]["sales"]
+  local savedVars    = otherData[attMegaserver]["sales"]
 
-  local theEvent = {}
-  local addedCount = 0
+  local theEvent     = {}
+  local addedCount   = 0
   local skippedCount = 0
-  local guildId = 0
+  local guildId      = 0
   for saleId, saleData in pairs(savedVars) do
-    theEvent = {
-      buyer     = saleData["buyerName"],
-      guild     = saleData["guildName"],
-      itemLink  = saleData["itemLink"],
-      quant     = saleData["quantity"],
+    theEvent         = {
+      buyer = saleData["buyerName"],
+      guild = saleData["guildName"],
+      itemLink = saleData["itemLink"],
+      quant = saleData["quantity"],
       timestamp = saleData["timeStamp"],
-      price     = saleData["price"],
-      seller    = saleData["sellerName"],
-      wasKiosk  = false,
-      id        = tostring(saleId),
+      price = saleData["price"],
+      seller = saleData["sellerName"],
+      wasKiosk = false,
+      id = tostring(saleId),
     }
     local guildFound = false
     for k, v in pairs(LibHistoire_GuildNames[attMegaserver]) do
       if theEvent.guild == v then
-        guildId = k
+        guildId    = k
         guildFound = true
         break
       end
@@ -480,14 +485,15 @@ function internal:ReferenceATTSales(otherData)
     if guildFound then
       theEvent.wasKiosk = (internal.guildMemberInfo[guildId][string.lower(theEvent.buyer)] == nil)
     end
-    local theIID = GetItemLinkItemId(theEvent.itemLink)
+    local theIID    = GetItemLinkItemId(theEvent.itemLink)
     local itemIndex = internal:MakeIndexFromLink(theEvent.itemLink)
     if att_sales_data[theIID] == nil then att_sales_data[theIID] = {} end
     if att_sales_data[theIID][itemIndex] == nil then
-      att_sales_data[theIID][itemIndex] = {}
+      att_sales_data[theIID][itemIndex]               = {}
       att_sales_data[theIID][itemIndex].itemIcon      = GetItemLinkInfo(theEvent.itemLink)
       att_sales_data[theIID][itemIndex].itemAdderText = internal:AddSearchToItem(theEvent.itemLink)
-      att_sales_data[theIID][itemIndex].itemDesc      = zo_strformat(SI_TOOLTIP_ITEM_NAME, GetItemLinkName(theEvent.itemLink))
+      att_sales_data[theIID][itemIndex].itemDesc      = zo_strformat(SI_TOOLTIP_ITEM_NAME,
+        GetItemLinkName(theEvent.itemLink))
     end
     if att_sales_data[theIID][itemIndex]["sales"] == nil then att_sales_data[theIID][itemIndex]["sales"] = {} end
     if not idNumbers[saleId] then

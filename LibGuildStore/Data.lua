@@ -1,9 +1,9 @@
-local lib = _G["LibGuildStore"]
-local internal = _G["LibGuildStore_Internal"]
-local sales_data = _G["LibGuildStore_SalesData"]
+local lib           = _G["LibGuildStore"]
+local internal      = _G["LibGuildStore_Internal"]
+local sales_data    = _G["LibGuildStore_SalesData"]
 local listings_data = _G["LibGuildStore_ListingsData"]
-local sr_index = _G["LibGuildStore_SalesIndex"]
-local LGH = LibHistoire
+local sr_index      = _G["LibGuildStore_SalesIndex"]
+local LGH           = LibHistoire
 
 function internal:concat(a, ...)
   if a == nil and ... == nil then
@@ -40,23 +40,23 @@ function internal:GetIndexByString(key, stringName)
 end
 
 function internal:GetStringByIndex(key, index)
-    if key == internal.GS_CHECK_ACCOUNTNAME then
-      if internal:is_empty_or_nil(internal.accountNameByIdLookup[index]) then return nil end
-      return internal.accountNameByIdLookup[index]
-    end
-    if key == internal.GS_CHECK_ITEMLINK then
-      if internal:is_empty_or_nil(internal.itemLinkNameByIdLookup[index]) then return nil end
-      return internal.itemLinkNameByIdLookup[index]
-    end
-    if key == internal.GS_CHECK_GUILDNAME then
-      if internal:is_empty_or_nil(internal.guildNameByIdLookup[index]) then return nil end
-      return internal.guildNameByIdLookup[index]
-    end
+  if key == internal.GS_CHECK_ACCOUNTNAME then
+    if internal:is_empty_or_nil(internal.accountNameByIdLookup[index]) then return nil end
+    return internal.accountNameByIdLookup[index]
+  end
+  if key == internal.GS_CHECK_ITEMLINK then
+    if internal:is_empty_or_nil(internal.itemLinkNameByIdLookup[index]) then return nil end
+    return internal.itemLinkNameByIdLookup[index]
+  end
+  if key == internal.GS_CHECK_GUILDNAME then
+    if internal:is_empty_or_nil(internal.guildNameByIdLookup[index]) then return nil end
+    return internal.guildNameByIdLookup[index]
+  end
 end
 
 -- uses mod to determine which save files to use
 function internal:MakeHashString(itemLink)
-  name = string.lower(zo_strformat(SI_TOOLTIP_ITEM_NAME, GetItemLinkName(itemLink)))
+  name       = string.lower(zo_strformat(SI_TOOLTIP_ITEM_NAME, GetItemLinkName(itemLink)))
   local hash = 0
   for c in string.gmatch(name, '.') do
     if c then hash = hash + string.byte(c) end
@@ -65,29 +65,29 @@ function internal:MakeHashString(itemLink)
 end
 
 local function GetLevelAndCPRequirementFromItemLink(itemLink)
-    local link = {ZO_LinkHandler_ParseLink(itemLink)}
-    return tonumber(link[5]), tonumber(link[6])
+  local link = { ZO_LinkHandler_ParseLink(itemLink) }
+  return tonumber(link[5]), tonumber(link[6])
 end
 
 local function GetPotionPowerLevel(itemLink)
-    local CP, level = GetLevelAndCPRequirementFromItemLink(itemLink)
-    if level < 50 then
-        return level
-    end
-    return CP
+  local CP, level = GetLevelAndCPRequirementFromItemLink(itemLink)
+  if level < 50 then
+    return level
+  end
+  return CP
 end
 -- The index consists of the item's required level, required vet
 -- level, quality, and trait(if any), separated by colons.
 function internal:MakeIndexFromLink(itemLink)
   --Standardize Level to 1 if the level is not relevent but is stored on some items (ex: recipes)
-  local levelReq = 1
+  local levelReq                      = 1
   local itemType, specializedItemType = GetItemLinkItemType(itemLink)
   if itemType ~= ITEMTYPE_RECIPE then
     levelReq = GetItemLinkRequiredLevel(itemLink)
   end
-  local vetReq = GetItemLinkRequiredChampionPoints(itemLink) / 10
+  local vetReq      = GetItemLinkRequiredChampionPoints(itemLink) / 10
   local itemQuality = GetItemLinkQuality(itemLink)
-  local itemTrait = GetItemLinkTraitType(itemLink)
+  local itemTrait   = GetItemLinkTraitType(itemLink)
   local theLastNumber
   --Add final number in the link to handle item differences like 2 and 3 buff potions
   if itemType == ITEMTYPE_MASTER_WRIT then
@@ -97,7 +97,7 @@ function internal:MakeIndexFromLink(itemLink)
   end
   if itemType == ITEMTYPE_POISON or itemType == ITEMTYPE_POTION then
     local value = GetPotionPowerLevel(itemLink)
-    itemTrait = internal.potionVarientTable[value] or "0"
+    itemTrait   = internal.potionVarientTable[value] or "0"
   end
   local index = levelReq .. ':' .. vetReq .. ':' .. itemQuality .. ':' .. itemTrait .. ':' .. theLastNumber
 
@@ -107,15 +107,15 @@ end
 function internal:AddSearchToItem(itemLink)
   --Standardize Level to 1 if the level is not relevent but is stored on some items (ex: recipes)
   local requiredLevel = 1
-  local itemType = GetItemLinkItemType(itemLink)
+  local itemType      = GetItemLinkItemType(itemLink)
   if itemType ~= ITEMTYPE_RECIPE then
     requiredLevel = GetItemLinkRequiredLevel(itemLink) -- verified
   end
 
   local requiredVeteranRank = GetItemLinkRequiredChampionPoints(itemLink) -- verified
-  local vrAdder = GetString(GS_CP_RANK_SEARCH)
+  local vrAdder             = GetString(GS_CP_RANK_SEARCH)
 
-  local adder = ''
+  local adder               = ''
   if (requiredLevel > 0 or requiredVeteranRank > 0) then
     if (requiredVeteranRank > 0) then
       adder = vrAdder .. string.format('%02d', requiredVeteranRank)
@@ -133,10 +133,12 @@ function internal:AddSearchToItem(itemLink)
   if (itemQuality == ITEM_DISPLAY_QUALITY_ARCANE) then adder = internal:concat(adder, GetString(GS_COLOR_BLUE)) end
   if (itemQuality == ITEM_DISPLAY_QUALITY_ARTIFACT) then adder = internal:concat(adder, GetString(GS_COLOR_PURPLE)) end
   if (itemQuality == ITEM_DISPLAY_QUALITY_LEGENDARY) then adder = internal:concat(adder, GetString(GS_COLOR_GOLD)) end
-  if (itemQuality == ITEM_DISPLAY_QUALITY_MYTHIC_OVERRIDE) then adder = internal:concat(adder, GetString(GS_COLOR_ORANGE)) end
+  if (itemQuality == ITEM_DISPLAY_QUALITY_MYTHIC_OVERRIDE) then adder = internal:concat(adder,
+    GetString(GS_COLOR_ORANGE)) end
 
   -- adds Mythic Legendary
-  adder = internal:concat(adder, zo_strformat("<<t:1>>", GetString("SI_ITEMDISPLAYQUALITY", itemQuality))) -- verified
+  adder           = internal:concat(adder,
+    zo_strformat("<<t:1>>", GetString("SI_ITEMDISPLAYQUALITY", itemQuality))) -- verified
 
   -- adds Heavy
   local armorType = GetItemLinkArmorType(itemLink) -- verified
@@ -179,14 +181,14 @@ function internal:AddSearchToItem(itemLink)
     adder = internal:concat(adder, zo_strformat("<<t:1>>", GetString("SI_ITEMTRAITTYPE", itemTrait)))
   end
 
-  resultTable = {}
+  resultTable  = {}
   resultString = string.gmatch(adder, '%S+')
   for word in resultString do
-      if next(resultTable) == nil then
-          table.insert(resultTable, word)
-      elseif not internal:is_in(word, resultTable) then
-          table.insert(resultTable, " " .. word)
-      end
+    if next(resultTable) == nil then
+      table.insert(resultTable, word)
+    elseif not internal:is_in(word, resultTable) then
+      table.insert(resultTable, " " .. word)
+    end
   end
   adder = table.concat(resultTable)
   return string.lower(adder)
@@ -217,14 +219,14 @@ end
 function internal:InitGuildStoreData(hash, identifier, itemLink)
   local hashVerify = internal:MakeHashString(itemLink)
   if hash ~= hashVerify then internal:dm("Debug", "There is a hash issue") end
-  local dataTable = _G[string.format("GS%02dDataSavedVariables", hash)]
-  local savedVars = dataTable[internal.dataNamespace]
+  local dataTable       = _G[string.format("GS%02dDataSavedVariables", hash)]
+  local savedVars       = dataTable[internal.dataNamespace]
   savedVars[identifier] = {}
   return savedVars
 end
 
 function internal:SetGuildStoreData(itemLink, theIID)
-  local hash = internal:MakeHashString(itemLink)
+  local hash        = internal:MakeHashString(itemLink)
   local dataTable   = _G[string.format("GS%02dDataSavedVariables", hash)]
   local savedVars   = dataTable[internal.dataNamespace]
   savedVars[theIID] = {}
@@ -232,7 +234,7 @@ function internal:SetGuildStoreData(itemLink, theIID)
 end
 
 function internal:setStorageTableData(key)
-  local savedVars = GS16DataSavedVariables
+  local savedVars  = GS16DataSavedVariables
   local lookupData = savedVars[key]
   return lookupData
 end
@@ -240,7 +242,7 @@ end
 function internal:AddSalesTableData(key, value)
   local saveData = GS16DataSavedVariables[key]
   if not saveData[value] then
-    local index = internal:NonContiguousNonNilCount(GS16DataSavedVariables[key]) + 1
+    local index     = internal:NonContiguousNonNilCount(GS16DataSavedVariables[key]) + 1
     saveData[value] = index
     if key == "accountNames" then
       internal.accountNameByIdLookup[index] = value
@@ -332,10 +334,10 @@ function internal:addToHistoryTables(theEvent)
   ]]--
 
   -- first add new data looks to their tables
-  local linkHash = internal:AddSalesTableData("itemLink", theEvent.itemLink)
-  local buyerHash = internal:AddSalesTableData("accountNames", theEvent.buyer)
+  local linkHash   = internal:AddSalesTableData("itemLink", theEvent.itemLink)
+  local buyerHash  = internal:AddSalesTableData("accountNames", theEvent.buyer)
   local sellerHash = internal:AddSalesTableData("accountNames", theEvent.seller)
-  local guildHash = internal:AddSalesTableData("guildNames", theEvent.guild)
+  local guildHash  = internal:AddSalesTableData("guildNames", theEvent.guild)
 
   --[[The quality effects itemIndex although the ID from the
   itemLink may be the same. We will keep them separate.
@@ -353,22 +355,22 @@ function internal:addToHistoryTables(theEvent)
   if not sales_data[theIID] then
     sales_data[theIID], hashUsed = internal:SetGuildStoreData(theEvent.itemLink, theIID)
   end
-  local expectedHash = internal:MakeHashString(theEvent.itemLink)
+  local expectedHash        = internal:MakeHashString(theEvent.itemLink)
 
-  local insertedIndex = 1
+  local insertedIndex       = 1
 
-  local searchItemDesc = ""
+  local searchItemDesc      = ""
   local searchItemAdderText = ""
 
-  local newEvent = ZO_DeepTableCopy(theEvent)
-  newEvent.itemLink = linkHash
-  newEvent.buyer = buyerHash
-  newEvent.seller = sellerHash
-  newEvent.guild = guildHash
+  local newEvent            = ZO_DeepTableCopy(theEvent)
+  newEvent.itemLink         = linkHash
+  newEvent.buyer            = buyerHash
+  newEvent.seller           = sellerHash
+  newEvent.guild            = guildHash
 
   if sales_data[theIID][itemIndex] then
-    local nextLocation = #sales_data[theIID][itemIndex]['sales'] + 1
-    searchItemDesc = sales_data[theIID][itemIndex].itemDesc
+    local nextLocation  = #sales_data[theIID][itemIndex]['sales'] + 1
+    searchItemDesc      = sales_data[theIID][itemIndex].itemDesc
     searchItemAdderText = sales_data[theIID][itemIndex].itemAdderText
     if sales_data[theIID][itemIndex]['sales'][nextLocation] == nil then
       table.insert(sales_data[theIID][itemIndex]['sales'], nextLocation, newEvent)
@@ -378,42 +380,44 @@ function internal:addToHistoryTables(theEvent)
       insertedIndex = #sales_data[theIID][itemIndex]['sales']
     end
   else
-    searchItemDesc = zo_strformat(SI_TOOLTIP_ITEM_NAME, GetItemLinkName(theEvent.itemLink))
+    searchItemDesc      = zo_strformat(SI_TOOLTIP_ITEM_NAME, GetItemLinkName(theEvent.itemLink))
     searchItemAdderText = internal:AddSearchToItem(theEvent.itemLink)
     if sales_data[theIID][itemIndex] == nil then sales_data[theIID][itemIndex] = {} end
     if sales_data[theIID][itemIndex]['sales'] == nil then sales_data[theIID][itemIndex]['sales'] = {} end
     sales_data[theIID][itemIndex] = {
-      itemIcon      = GetItemLinkInfo(theEvent.itemLink),
+      itemIcon = GetItemLinkInfo(theEvent.itemLink),
       itemAdderText = searchItemAdderText,
-      itemDesc      = searchItemDesc,
-      sales         = { newEvent } }
+      itemDesc = searchItemDesc,
+      sales = { newEvent } }
     --internal:dm("Debug", newEvent)
   end
   sales_data[theIID][itemIndex].wasAltered = true
 
   -- this section adds the sales to the lists for the MM window
   local guild
-  local adderDescConcat = searchItemDesc .. ' ' .. searchItemAdderText
+  local adderDescConcat                    = searchItemDesc .. ' ' .. searchItemAdderText
 
-  guild = internal.guildSales[theEvent.guild] or MMGuild:new(theEvent.guild)
-  internal.guildSales[theEvent.guild] = guild
+  guild                                    = internal.guildSales[theEvent.guild] or MMGuild:new(theEvent.guild)
+  internal.guildSales[theEvent.guild]      = guild
   guild:addSaleByDate(theEvent.seller, theEvent.timestamp, theEvent.price, theEvent.quant, false)
 
-  guild = internal.guildPurchases[theEvent.guild] or MMGuild:new(theEvent.guild)
+  guild                                   = internal.guildPurchases[theEvent.guild] or MMGuild:new(theEvent.guild)
   internal.guildPurchases[theEvent.guild] = guild
   guild:addSaleByDate(theEvent.buyer, theEvent.timestamp, theEvent.price, theEvent.quant, theEvent.wasKiosk)
 
-  guild = internal.guildItems[theEvent.guild] or MMGuild:new(theEvent.guild)
+  guild                               = internal.guildItems[theEvent.guild] or MMGuild:new(theEvent.guild)
   internal.guildItems[theEvent.guild] = guild
-  guild:addSaleByDate(theEvent.itemLink, theEvent.timestamp, theEvent.price, theEvent.quant, false, nil, adderDescConcat)
+  guild:addSaleByDate(theEvent.itemLink, theEvent.timestamp, theEvent.price, theEvent.quant, false, nil,
+    adderDescConcat)
 
   local playerName = string.lower(GetDisplayName())
   local isSelfSale = playerName == string.lower(theEvent.seller)
 
   if isSelfSale then
-    guild                                  = internal.myItems[theEvent.guild] or MMGuild:new(theEvent.guild)
+    guild                            = internal.myItems[theEvent.guild] or MMGuild:new(theEvent.guild)
     internal.myItems[theEvent.guild] = guild;
-    guild:addSaleByDate(theEvent.itemLink, theEvent.timestamp, theEvent.price, theEvent.quant, false, nil, adderDescConcat)
+    guild:addSaleByDate(theEvent.itemLink, theEvent.timestamp, theEvent.price, theEvent.quant, false, nil,
+      adderDescConcat)
   end
 
   local temp       = { 'b', '', ' s', '', ' ', '', ' ', '', ' ', '', ' ', '' }
@@ -464,11 +468,11 @@ function internal:SetupListener(guildId)
     if eventType == GUILD_EVENT_ITEM_SOLD and not internal.isDatabaseBusy then
       if not lastReceivedEventID or CompareId64s(eventId, lastReceivedEventID) > 0 then
         LibGuildStore_SavedVariables["lastReceivedEventID"][guildId] = Id64ToString(eventId)
-        lastReceivedEventID = eventId
+        lastReceivedEventID                                          = eventId
       end
-      local guildName = GetGuildName(guildId)
-      local thePlayer = string.lower(GetDisplayName())
-      local added = false
+      local guildName           = GetGuildName(guildId)
+      local thePlayer           = string.lower(GetDisplayName())
+      local added               = false
       --[[
       local theEvent = {
         buyer = p2,
@@ -505,18 +509,18 @@ function internal:SetupListener(guildId)
         ["seller"] = "@cherrypick",
       },
       ]]--
-      local theEvent = {
-        buyer     = p2,
-        guild     = guildName,
-        itemLink  = p4,
-        quant     = p3,
+      local theEvent            = {
+        buyer = p2,
+        guild = guildName,
+        itemLink = p4,
+        quant = p3,
         timestamp = eventTime,
-        price     = p5,
-        seller    = p1,
-        wasKiosk  = false,
-        id        = Id64ToString(eventId)
+        price = p5,
+        seller = p1,
+        wasKiosk = false,
+        id = Id64ToString(eventId)
       }
-      theEvent.wasKiosk = (internal.guildMemberInfo[guildId][string.lower(theEvent.buyer)] == nil)
+      theEvent.wasKiosk         = (internal.guildMemberInfo[guildId][string.lower(theEvent.buyer)] == nil)
 
       local daysOfHistoryToKeep = GetTimeStamp() - internal.oneDayInSeconds * LibGuildStore_SavedVariables["historyDepth"]
       if (theEvent.timestamp > daysOfHistoryToKeep) then
@@ -540,10 +544,10 @@ function internal:SetupListener(guildId)
 end
 
 function internal:addListing(listing, addBuyer)
-  local linkHash = internal:AddSalesTableData("itemLink", listing.ItemLink)
-  local buyerHash = internal:AddSalesTableData("accountNames", GetDisplayName())
+  local linkHash   = internal:AddSalesTableData("itemLink", listing.ItemLink)
+  local buyerHash  = internal:AddSalesTableData("accountNames", GetDisplayName())
   local sellerHash = internal:AddSalesTableData("accountNames", listing.Seller)
-  local guildHash = internal:AddSalesTableData("guildNames", listing.Guild)
+  local guildHash  = internal:AddSalesTableData("guildNames", listing.Guild)
 
   local itemIndex  = internal:MakeIndexFromLink(listing.itemLink)
   local theIID     = GetItemLinkItemId(listing.itemLink)
@@ -575,16 +579,16 @@ end
 
 function internal:onTradingHouseEvent(eventCode, slotId, isPending)
   if not AwesomeGuildStore then
-    local CurrentPurchase = {}
+    local CurrentPurchase                                                                                                          = {}
     local icon, itemName, displayQuality, quantity, seller, timeRemaining, price, currencyType, itemUniqueId, purchasePricePerUnit = GetTradingHouseSearchResultItemInfo(slotId)
-    local guildId, guild, guildAlliance = GetCurrentTradingHouseGuildDetails()
-    CurrentPurchase.ItemLink = GetTradingHouseSearchResultItemLink(slotId)
-    CurrentPurchase.Quantity = quantity
-    CurrentPurchase.Price = price
-    CurrentPurchase.Seller = seller
-    CurrentPurchase.Guild = guild
-    CurrentPurchase.id = Id64ToString(itemUniqueId)
-    CurrentPurchase.TimeStamp = GetTimeStamp()
+    local guildId, guild, guildAlliance                                                                                            = GetCurrentTradingHouseGuildDetails()
+    CurrentPurchase.ItemLink                                                                                                       = GetTradingHouseSearchResultItemLink(slotId)
+    CurrentPurchase.Quantity                                                                                                       = quantity
+    CurrentPurchase.Price                                                                                                          = price
+    CurrentPurchase.Seller                                                                                                         = seller
+    CurrentPurchase.Guild                                                                                                          = guild
+    CurrentPurchase.id                                                                                                             = Id64ToString(itemUniqueId)
+    CurrentPurchase.TimeStamp                                                                                                      = GetTimeStamp()
     internal:addListing(CurrentPurchase, addBuyer)
     --ShoppingList.List:Refresh()
   end
@@ -595,30 +599,30 @@ function internal:AddAwesomeGuildStoreListing(listing)
 end
 
 function internal:processAwesomeGuildStore(itemDatabase)
-    local guildCounts = {}
-    for guildIndex, guildData in pairs(itemDatabase) do
-      local guildName = GetGuildName(guildIndex)
-      guildCounts[guildName] = internal:NonContiguousNonNilCount(itemDatabase[guildIndex])
-      for dataIndex, listingData in pairs(guildData) do
-        local index = Id64ToString(dataIndex)
-        --internal:dm("Debug", index)
-        internal:AddAwesomeGuildStoreListing(listingData)
-        break
-      end
+  local guildCounts = {}
+  for guildIndex, guildData in pairs(itemDatabase) do
+    local guildName        = GetGuildName(guildIndex)
+    guildCounts[guildName] = internal:NonContiguousNonNilCount(itemDatabase[guildIndex])
+    for dataIndex, listingData in pairs(guildData) do
+      local index = Id64ToString(dataIndex)
+      --internal:dm("Debug", index)
+      internal:AddAwesomeGuildStoreListing(listingData)
+      break
     end
-    --[[
-    local icon, itemName, displayQuality, quantity, seller, timeRemaining, price, currencyType, itemUniqueId, purchasePricePerUnit = GetTradingHouseSearchResultItemInfo(slotId)
-    local guildId, guild, guildAlliance = GetCurrentTradingHouseGuildDetails()
-    CurrentPurchase.ItemLink = GetTradingHouseSearchResultItemLink(slotId)
-    CurrentPurchase.Quantity = quantity
-    CurrentPurchase.Price = price
-    CurrentPurchase.Seller = seller:gsub("|c.-$", "")
-    CurrentPurchase.Guild = guild
-    CurrentPurchase.itemUniqueId = Id64ToString(itemUniqueId)
-    CurrentPurchase.TimeStamp = GetTimeStamp()
-    internal:addListing(CurrentPurchase)
-    ]]--
-    --ShoppingList.List:Refresh()
+  end
+  --[[
+  local icon, itemName, displayQuality, quantity, seller, timeRemaining, price, currencyType, itemUniqueId, purchasePricePerUnit = GetTradingHouseSearchResultItemInfo(slotId)
+  local guildId, guild, guildAlliance = GetCurrentTradingHouseGuildDetails()
+  CurrentPurchase.ItemLink = GetTradingHouseSearchResultItemLink(slotId)
+  CurrentPurchase.Quantity = quantity
+  CurrentPurchase.Price = price
+  CurrentPurchase.Seller = seller:gsub("|c.-$", "")
+  CurrentPurchase.Guild = guild
+  CurrentPurchase.itemUniqueId = Id64ToString(itemUniqueId)
+  CurrentPurchase.TimeStamp = GetTimeStamp()
+  internal:addListing(CurrentPurchase)
+  ]]--
+  --ShoppingList.List:Refresh()
 end
 
 -- Handle the reset button - clear out the search and scan tables,
@@ -628,10 +632,10 @@ function internal:DoReset()
   local notReady = true
   if notReady then return end
 
-  local sales_data = {}
-  local sr_index = {}
-  _G["LibGuildStore_SalesData"] = sales_data
-  _G["LibGuildStore_SalesIndex"] = sr_index
+  local sales_data                  = {}
+  local sr_index                    = {}
+  _G["LibGuildStore_SalesData"]     = sales_data
+  _G["LibGuildStore_SalesIndex"]    = sr_index
 
   MM00Data.savedVariables.SalesData = {}
   MM01Data.savedVariables.SalesData = {}

@@ -1,25 +1,25 @@
-local libName, libVersion = "LibGuildStore", 100
-local lib = {}
-local internal = {}
-local sales_data = {}
-local listings_data = {}
-local sr_index = {}
-local mm_sales_data = {}
-local att_sales_data = {}
-_G["LibGuildStore"] = lib
-_G["LibGuildStore_Internal"] = internal
-_G["LibGuildStore_SalesData"] = sales_data
-_G["LibGuildStore_ListingsData"] = listings_data
-_G["LibGuildStore_SalesIndex"] = sr_index
-_G["LibGuildStore_MM_SalesData"] = mm_sales_data
+local libName, libVersion         = "LibGuildStore", 100
+local lib                         = {}
+local internal                    = {}
+local sales_data                  = {}
+local listings_data               = {}
+local sr_index                    = {}
+local mm_sales_data               = {}
+local att_sales_data              = {}
+_G["LibGuildStore"]               = lib
+_G["LibGuildStore_Internal"]      = internal
+_G["LibGuildStore_SalesData"]     = sales_data
+_G["LibGuildStore_ListingsData"]  = listings_data
+_G["LibGuildStore_SalesIndex"]    = sr_index
+_G["LibGuildStore_MM_SalesData"]  = mm_sales_data
 _G["LibGuildStore_ATT_SalesData"] = att_sales_data
 
-lib.libName = libName
-lib.libVersion = libVersion
+lib.libName                       = libName
+lib.libVersion                    = libVersion
 
 if LibDebugLogger then
-  local logger = LibDebugLogger.Create(libName)
-  internal.logger   = logger
+  local logger    = LibDebugLogger.Create(libName)
+  internal.logger = logger
 end
 local SDLV = DebugLogViewer
 if SDLV then internal.viewer = true else internal.viewer = false end
@@ -111,8 +111,8 @@ end
 internal.supported_lang = internal.client_lang == internal.effective_lang
 
 function internal:is_empty_or_nil(t)
-    if t == nil or t == "" then return true end
-    return type(t) == "table" and ZO_IsTableEmpty(t) or false
+  if t == nil or t == "" then return true end
+  return type(t) == "table" and ZO_IsTableEmpty(t) or false
 end
 
 internal.saveVarsDefaults = {
@@ -120,36 +120,36 @@ internal.saveVarsDefaults = {
 }
 
 if not LibGuildStore_SavedVariables then LibGuildStore_SavedVariables = internal.saveVarsDefaults end
-internal.LibHistoireListener = { } -- added for debug on 10-31
-internal.alertQueue = { }
-internal.guildMemberInfo = { }
-internal.accountNameByIdLookup = { }
-internal.itemLinkNameByIdLookup = { }
-internal.guildNameByIdLookup = { }
+internal.LibHistoireListener     = { } -- added for debug on 10-31
+internal.alertQueue              = { }
+internal.guildMemberInfo         = { }
+internal.accountNameByIdLookup   = { }
+internal.itemLinkNameByIdLookup  = { }
+internal.guildNameByIdLookup     = { }
 internal.guildStoreSearchResults = { }
-internal.guildStoreSales = { } -- holds all sales
-internal.guildStoreListings = { } -- holds all listings
-internal.verboseLevel = 4
-internal.eventsNeedProcessing   = {}
-internal.timeEstimated          = {}
-internal.isDatabaseBusy = false
-internal.guildItems = nil
-internal.myItems = nil
-internal.guildSales = nil
-internal.guildPurchases = nil
-internal.totalRecords = 0
-internal.oneDayInSeconds  = 86400
+internal.guildStoreSales         = { } -- holds all sales
+internal.guildStoreListings      = { } -- holds all listings
+internal.verboseLevel            = 4
+internal.eventsNeedProcessing    = {}
+internal.timeEstimated           = {}
+internal.isDatabaseBusy          = false
+internal.guildItems              = nil
+internal.myItems                 = nil
+internal.guildSales              = nil
+internal.guildPurchases          = nil
+internal.totalRecords            = 0
+internal.oneDayInSeconds         = 86400
 
-internal.GS_CHECK_ACCOUNTNAME = "AccountNames"
-internal.GS_CHECK_ITEMLINK = "ItemLink"
-internal.GS_CHECK_GUILDNAME = "GuildNames"
-internal.PlayerSpecialText = 'hfdkkdfunlajjamdhsiwsuwj'
+internal.GS_CHECK_ACCOUNTNAME    = "AccountNames"
+internal.GS_CHECK_ITEMLINK       = "ItemLink"
+internal.GS_CHECK_GUILDNAME      = "GuildNames"
+internal.PlayerSpecialText       = 'hfdkkdfunlajjamdhsiwsuwj'
 
-internal.dataNamespace = ""
-internal.listingsNamespace = ""
+internal.dataNamespace           = ""
+internal.listingsNamespace       = ""
+internal.firstrunNamespace       = ""
 
-
-lib.guildStoreReady = false -- when no more events are pending
+lib.guildStoreReady              = false -- when no more events are pending
 
 --[[TODO
 local currencyFormatDealOptions = {
@@ -158,18 +158,18 @@ local currencyFormatDealOptions = {
 --- the other qualities
 }
 ]]--
-internal.potionVarientTable = {
-  [0]   = 0,
-  [1]   = 0,
-  [3]   = 1,
-  [10]  = 2,
-  [19]  = 2, -- level 19 pots I found
-  [20]  = 3,
-  [24]  = 3, -- level 24 pots I found
-  [30]  = 4,
-  [39]  = 4, -- level 39 pots I found
-  [40]  = 5,
-  [44]  = 5, -- level 44 pots I found
+internal.potionVarientTable      = {
+  [0] = 0,
+  [1] = 0,
+  [3] = 1,
+  [10] = 2,
+  [19] = 2, -- level 19 pots I found
+  [20] = 3,
+  [24] = 3, -- level 24 pots I found
+  [30] = 4,
+  [39] = 4, -- level 39 pots I found
+  [40] = 5,
+  [44] = 5, -- level 44 pots I found
   [125] = 6,
   [129] = 7,
   [134] = 8,
@@ -177,7 +177,7 @@ internal.potionVarientTable = {
   [308] = 9,
 }
 
-internal.defaults = {
+internal.defaults                = {
   -- ["firstRun"] = true not needed when reset
   updateAdditionalText = false,
   historyDepth = 30,

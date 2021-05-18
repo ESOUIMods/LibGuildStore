@@ -1,11 +1,11 @@
-local lib = _G["LibGuildStore"]
-local internal = _G["LibGuildStore_Internal"]
-local sales_data = _G["LibGuildStore_SalesData"]
-local listings_data = _G["LibGuildStore_ListingsData"]
-local sr_index = _G["LibGuildStore_SalesIndex"]
+local lib            = _G["LibGuildStore"]
+local internal       = _G["LibGuildStore_Internal"]
+local sales_data     = _G["LibGuildStore_SalesData"]
+local listings_data  = _G["LibGuildStore_ListingsData"]
+local sr_index       = _G["LibGuildStore_SalesIndex"]
 local att_sales_data = _G["LibGuildStore_ATT_SalesData"]
-local ASYNC = LibAsync
-local LGH = LibHistoire
+local ASYNC          = LibAsync
+local LGH            = LibHistoire
 
 --[[ This file contains all instances of functions that utilize
 iterateOverSalesData.
@@ -20,7 +20,7 @@ iterateOverSalesData.
 function internal:CompareSalesIds()
   internal:dm("Debug", "CompareSalesIds")
   local mmsaveData = dataset[internal.dataNamespace]
-  local itemIds = {}
+  local itemIds    = {}
   for itemID, itemData in pairs(att_sales_data) do
     for itemIndex, itemIndexData in pairs(itemData) do
       for key, sale in pairs(itemIndexData['sales']) do
@@ -40,7 +40,7 @@ end
 function internal:CompareItemIds(dataset)
   internal:dm("Debug", "CompareItemIds")
   local saveData = dataset[internal.dataNamespace]
-  local itemIds = {}
+  local itemIds  = {}
   for itemID, itemData in pairs(saveData) do
     for itemIndex, itemIndexData in pairs(itemData) do
       for key, sale in pairs(itemIndexData['sales']) do
@@ -172,7 +172,8 @@ function internal:iterateOverSalesData(itemid, versionid, saleid, prefunc, loopf
           -- We've run out of time, wait and continue with next sale
           if saleid and (GetGameTimeMilliseconds() - checkTime) > extraData.checkMilliseconds then
             local LEQ = LibExecutionQueue:new()
-            LEQ:ContinueWith(function() internal:iterateOverSalesData(itemid, versionid, saleid, nil, loopfunc, postfunc,
+            LEQ:ContinueWith(function() internal:iterateOverSalesData(itemid, versionid, saleid, nil, loopfunc,
+              postfunc,
               extraData) end, nil)
             return
           end
@@ -210,13 +211,13 @@ function internal:iterateOverSalesData(itemid, versionid, saleid, prefunc, loopf
           itemLink = internal:GetStringByIndex(internal.GS_CHECK_ITEMLINK, itemData["itemLink"])
           if itemLink then
             versiondata['itemAdderText'] = internal:AddSearchToItem(itemLink)
-            versiondata['itemDesc'] = zo_strformat(SI_TOOLTIP_ITEM_NAME, GetItemLinkName(itemLink))
+            versiondata['itemDesc']      = zo_strformat(SI_TOOLTIP_ITEM_NAME, GetItemLinkName(itemLink))
           end
         end
       end
       if extraData.wasAltered then
         versiondata["wasAltered"] = true
-        extraData.wasAltered = false
+        extraData.wasAltered      = false
       end
       -- Go onto the next Version
       versionid, versiondata = next(versionlist, versionid)
@@ -241,7 +242,7 @@ function internal:iterateOverSalesData(itemid, versionid, saleid, prefunc, loopf
     end
 
     if (sales_data[itemid] ~= nil and ((internal:NonContiguousNonNilCount(versionlist) < 1) or (type(itemid) ~= 'number'))) then
-      extraData.idCount      = (extraData.idCount or 0) + 1
+      extraData.idCount  = (extraData.idCount or 0) + 1
       sales_data[itemid] = nil
     end
 
@@ -279,9 +280,10 @@ function internal:TruncateHistory()
 
   local loopfunc = function(itemid, versionid, versiondata, saleid, saledata, extraData)
 
-    local salesDeleted = 0
-    salesCount = versiondata.totalCount
-    local salesDataTable = internal:spairs(versiondata['sales'], function(a, b) return internal:CleanTimestamp(a) < internal:CleanTimestamp(b) end)
+    local salesDeleted   = 0
+    salesCount           = versiondata.totalCount
+    local salesDataTable = internal:spairs(versiondata['sales'],
+      function(a, b) return internal:CleanTimestamp(a) < internal:CleanTimestamp(b) end)
     for saleid, saledata in salesDataTable do
       if LibGuildStore_SavedVariables["useSalesHistory"] then
         if (saledata['timestamp'] < extraData.epochBack
@@ -291,7 +293,7 @@ function internal:TruncateHistory()
           -- Remove it by setting it to nil
           versiondata['sales'][saleid] = nil
           salesDeleted                 = salesDeleted + 1
-          extraData.wasAltered = true
+          extraData.wasAltered         = true
         end
       else
         if salesCount > LibGuildStore_SavedVariables["minItemCount"] and
@@ -304,7 +306,7 @@ function internal:TruncateHistory()
           versiondata['sales'][saleid] = nil
           salesDeleted                 = salesDeleted + 1
           salesCount                   = salesCount - 1
-          extraData.wasAltered = true
+          extraData.wasAltered         = true
         end
       end
     end
@@ -321,7 +323,8 @@ function internal:TruncateHistory()
 
   local postfunc = function(extraData)
     internal:DatabaseBusy(false)
-    internal:dm("Info", string.format(GetString(GS_TRUNCATE_COMPLETE), GetTimeStamp() - extraData.start, extraData.deleteCount))
+    internal:dm("Info",
+      string.format(GetString(GS_TRUNCATE_COMPLETE), GetTimeStamp() - extraData.start, extraData.deleteCount))
   end
 
   if not internal.isDatabaseBusy then
@@ -337,75 +340,78 @@ function internal:InitItemHistory()
   local extradata = {}
 
   if internal.guildItems == nil then
-    internal.guildItems        = {}
+    internal.guildItems    = {}
     extradata.doGuildItems = true
   end
 
   if internal.myItems == nil then
-    internal.myItems         = {}
+    internal.myItems     = {}
     extradata.doMyItems  = true
     extradata.playerName = string.lower(GetDisplayName())
   end
 
   if internal.guildSales == nil then
-    internal.guildSales        = {}
+    internal.guildSales    = {}
     extradata.doGuildSales = true
   end
 
   if internal.guildPurchases == nil then
-    internal.guildPurchases        = {}
+    internal.guildPurchases    = {}
     extradata.doGuildPurchases = true
   end
 
   if (extradata.doGuildItems or extradata.doMyItems or extradata.doGuildSales or extradata.doGuildPurchases) then
 
-    local prefunc     = function(extraData)
+    local prefunc  = function(extraData)
       extraData.start = GetTimeStamp()
       internal:DatabaseBusy(true)
       extraData.totalRecords = 0
-      extraData.wasAltered  = false
+      extraData.wasAltered   = false
     end
 
-    local loopfunc    = function(itemid, versionid, versiondata, saleid, saledata, extraData)
+    local loopfunc = function(itemid, versionid, versiondata, saleid, saledata, extraData)
       extraData.totalRecords = extraData.totalRecords + 1
       if (not (saledata == {})) and saledata.guild then
-        local currentGuild = internal:GetStringByIndex(internal.GS_CHECK_GUILDNAME, saledata['guild'])
+        local currentGuild  = internal:GetStringByIndex(internal.GS_CHECK_GUILDNAME, saledata['guild'])
         local currentSeller = internal:GetStringByIndex(internal.GS_CHECK_ACCOUNTNAME, saledata['seller'])
-        local currentBuyer = internal:GetStringByIndex(internal.GS_CHECK_ACCOUNTNAME, saledata['buyer'])
+        local currentBuyer  = internal:GetStringByIndex(internal.GS_CHECK_ACCOUNTNAME, saledata['buyer'])
 
         if (extradata.doGuildItems) then
           internal.guildItems[currentGuild] = internal.guildItems[currentGuild] or MMGuild:new(currentGuild)
-          local guild                     = internal.guildItems[currentGuild]
-          local _, firstsaledata          = next(versiondata.sales, nil)
-          local firstsaledataItemLink = internal:GetStringByIndex(internal.GS_CHECK_ITEMLINK, firstsaledata.itemLink)
-          local searchDataDesc            = versiondata.itemDesc or zo_strformat(SI_TOOLTIP_ITEM_NAME, GetItemLinkName(firstsaledataItemLink))
-          local searchDataAdder           = versiondata.itemAdderText or internal:AddSearchToItem(firstsaledataItemLink)
-          local searchData                = searchDataDesc .. ' ' .. searchDataAdder
+          local guild                       = internal.guildItems[currentGuild]
+          local _, firstsaledata            = next(versiondata.sales, nil)
+          local firstsaledataItemLink       = internal:GetStringByIndex(internal.GS_CHECK_ITEMLINK,
+            firstsaledata.itemLink)
+          local searchDataDesc              = versiondata.itemDesc or zo_strformat(SI_TOOLTIP_ITEM_NAME,
+            GetItemLinkName(firstsaledataItemLink))
+          local searchDataAdder             = versiondata.itemAdderText or internal:AddSearchToItem(firstsaledataItemLink)
+          local searchData                  = searchDataDesc .. ' ' .. searchDataAdder
           guild:addSaleByDate(firstsaledataItemLink, saledata.timestamp, saledata.price, saledata.quant, false, false,
             searchData)
         end
 
         if (extradata.doMyItems and string.lower(currentSeller) == extradata.playerName) then
           internal.myItems[currentGuild] = internal.myItems[currentGuild] or MMGuild:new(currentGuild)
-          local guild                  = internal.myItems[currentGuild]
-          local _, firstsaledata       = next(versiondata.sales, nil)
-          local firstsaledataItemLink = internal:GetStringByIndex(internal.GS_CHECK_ITEMLINK, firstsaledata.itemLink)
-          local searchDataDesc            = versiondata.itemDesc or zo_strformat(SI_TOOLTIP_ITEM_NAME, GetItemLinkName(firstsaledataItemLink))
-          local searchDataAdder           = versiondata.itemAdderText or internal:AddSearchToItem(firstsaledataItemLink)
-          local searchData                = searchDataDesc .. ' ' .. searchDataAdder
+          local guild                    = internal.myItems[currentGuild]
+          local _, firstsaledata         = next(versiondata.sales, nil)
+          local firstsaledataItemLink    = internal:GetStringByIndex(internal.GS_CHECK_ITEMLINK, firstsaledata.itemLink)
+          local searchDataDesc           = versiondata.itemDesc or zo_strformat(SI_TOOLTIP_ITEM_NAME,
+            GetItemLinkName(firstsaledataItemLink))
+          local searchDataAdder          = versiondata.itemAdderText or internal:AddSearchToItem(firstsaledataItemLink)
+          local searchData               = searchDataDesc .. ' ' .. searchDataAdder
           guild:addSaleByDate(firstsaledataItemLink, saledata.timestamp, saledata.price, saledata.quant, false, false,
             searchData)
         end
 
         if (extradata.doGuildSales) then
           internal.guildSales[currentGuild] = internal.guildSales[currentGuild] or MMGuild:new(currentGuild)
-          local guild                     = internal.guildSales[currentGuild]
+          local guild                       = internal.guildSales[currentGuild]
           guild:addSaleByDate(currentSeller, saledata.timestamp, saledata.price, saledata.quant, false, false)
         end
 
         if (extradata.doGuildPurchases) then
           internal.guildPurchases[currentGuild] = internal.guildPurchases[currentGuild] or MMGuild:new(currentGuild)
-          local guild                         = internal.guildPurchases[currentGuild]
+          local guild                           = internal.guildPurchases[currentGuild]
           guild:addSaleByDate(currentBuyer, saledata.timestamp, saledata.price, saledata.quant, saledata.wasKiosk,
             false)
         end
@@ -413,7 +419,7 @@ function internal:InitItemHistory()
       return false
     end
 
-    local postfunc    = function(extraData)
+    local postfunc = function(extraData)
 
       if (extradata.doGuildItems) then
         for _, guild in pairs(internal.guildItems) do
@@ -443,7 +449,8 @@ function internal:InitItemHistory()
 
       internal.totalRecords = extraData.totalRecords
       if LibGuildStore_SavedVariables["showGuildInitSummary"] then
-        internal:dm("Info", string.format(GetString(GS_INIT_ITEM_HISTORY_SUMMARY), GetTimeStamp() - extraData.start, internal.totalRecords))
+        internal:dm("Info", string.format(GetString(GS_INIT_ITEM_HISTORY_SUMMARY), GetTimeStamp() - extraData.start,
+          internal.totalRecords))
       end
     end
 
@@ -480,13 +487,13 @@ function internal:indexHistoryTables()
 
   local loopfunc   = function(numberID, itemData, versiondata, itemIndex, soldItem, extraData)
 
-    extraData.indexCount = extraData.indexCount + 1
+    extraData.indexCount  = extraData.indexCount + 1
 
     local searchText
     local currentItemLink = internal:GetStringByIndex(internal.GS_CHECK_ITEMLINK, soldItem['itemLink'])
-    local currentGuild = internal:GetStringByIndex(internal.GS_CHECK_GUILDNAME, soldItem['guild'])
-    local currentBuyer = internal:GetStringByIndex(internal.GS_CHECK_ACCOUNTNAME, soldItem['buyer'])
-    local currentSeller = internal:GetStringByIndex(internal.GS_CHECK_ACCOUNTNAME, soldItem['seller'])
+    local currentGuild    = internal:GetStringByIndex(internal.GS_CHECK_GUILDNAME, soldItem['guild'])
+    local currentBuyer    = internal:GetStringByIndex(internal.GS_CHECK_ACCOUNTNAME, soldItem['buyer'])
+    local currentSeller   = internal:GetStringByIndex(internal.GS_CHECK_ACCOUNTNAME, soldItem['seller'])
 
     if LibGuildStore_SavedVariables["minimalIndexing"] then
       if playerName == string.lower(currentSeller) then
@@ -496,7 +503,8 @@ function internal:indexHistoryTables()
       end
     else
       versiondata.itemAdderText = versiondata.itemAdderText or internal:AddSearchToItem(currentItemLink)
-      versiondata.itemDesc      = versiondata.itemDesc or zo_strformat(SI_TOOLTIP_ITEM_NAME, GetItemLinkName(currentItemLink))
+      versiondata.itemDesc      = versiondata.itemDesc or zo_strformat(SI_TOOLTIP_ITEM_NAME,
+        GetItemLinkName(currentItemLink))
       versiondata.itemIcon      = versiondata.itemIcon or GetItemLinkInfo(currentItemLink)
 
       temp[2]                   = currentBuyer or ''
@@ -518,7 +526,7 @@ function internal:indexHistoryTables()
     for i in searchByWords do
       if sr_index[i] == nil then
         extraData.wordsIndexCount = extraData.wordsIndexCount + 1
-        sr_index[i]           = {}
+        sr_index[i]               = {}
       end
       table.insert(sr_index[i], wordData)
     end
@@ -528,7 +536,9 @@ function internal:indexHistoryTables()
   local postfunc   = function(extraData)
     internal:DatabaseBusy(false)
     if LibGuildStore_SavedVariables["showGuildInitSummary"] then
-      internal:dm("Info", string.format(GetString(GS_INDEXING_SUMMARY), GetTimeStamp() - extraData.start, extraData.indexCount, extraData.wordsIndexCount))
+      internal:dm("Info",
+        string.format(GetString(GS_INDEXING_SUMMARY), GetTimeStamp() - extraData.start, extraData.indexCount,
+          extraData.wordsIndexCount))
     end
   end
 
@@ -543,7 +553,7 @@ end
 ----------------------------------------
 
 function internal:CleanOutBad()
-      internal:dm("Debug", "CleanOutBad")
+  internal:dm("Debug", "CleanOutBad")
 
   local prefunc  = function(extraData)
     extraData.start             = GetTimeStamp()
@@ -565,9 +575,9 @@ function internal:CleanOutBad()
     --saledata.itemAdderText = nil
 
     local currentItemLink = internal:GetStringByIndex(internal.GS_CHECK_ITEMLINK, saledata['itemLink'])
-    local currentGuild = internal:GetStringByIndex(internal.GS_CHECK_GUILDNAME, saledata['guild'])
-    local currentBuyer = internal:GetStringByIndex(internal.GS_CHECK_ACCOUNTNAME, saledata['buyer'])
-    local currentSeller = internal:GetStringByIndex(internal.GS_CHECK_ACCOUNTNAME, saledata['seller'])
+    local currentGuild    = internal:GetStringByIndex(internal.GS_CHECK_GUILDNAME, saledata['guild'])
+    local currentBuyer    = internal:GetStringByIndex(internal.GS_CHECK_ACCOUNTNAME, saledata['buyer'])
+    local currentSeller   = internal:GetStringByIndex(internal.GS_CHECK_ACCOUNTNAME, saledata['seller'])
     if type(saledata) ~= 'table'
       or saledata['timestamp'] == nil
       or type(saledata['timestamp']) ~= 'number'
@@ -586,7 +596,7 @@ function internal:CleanOutBad()
       or saledata['id'] == nil then
       -- Remove it
       versiondata['sales'][saleid] = nil
-      extraData.wasAltered = true
+      extraData.wasAltered         = true
       extraData.deleteCount        = extraData.deleteCount + 1
       return
     end
@@ -606,7 +616,7 @@ function internal:CleanOutBad()
     if not internal:IsValidItemLink(currentItemLink) then
       -- Remove it
       versiondata['sales'][saleid] = nil
-      extraData.wasAltered = true
+      extraData.wasAltered         = true
       extraData.badItemLinkCount   = extraData.badItemLinkCount + 1
       return
     end
@@ -655,21 +665,21 @@ function internal:CleanOutBad()
       },
       ]]--
       local theEvent = {
-        buyer     = currentBuyer,
-        guild     = currentGuild,
-        itemLink  = currentItemLink,
-        quant     = saledata.quant,
+        buyer = currentBuyer,
+        guild = currentGuild,
+        itemLink = currentItemLink,
+        quant = saledata.quant,
         timestamp = saledata.timestamp,
-        price     = saledata.price,
-        seller    = currentSeller,
-        wasKiosk  = saledata.wasKiosk,
-        id        = Id64ToString(saledata.id)
+        price = saledata.price,
+        seller = currentSeller,
+        wasKiosk = saledata.wasKiosk,
+        id = Id64ToString(saledata.id)
       }
       internal:addToHistoryTables(theEvent)
       extraData.moveCount          = extraData.moveCount + 1
       -- Remove it from it's current location
       versiondata['sales'][saleid] = nil
-      extraData.wasAltered = true
+      extraData.wasAltered         = true
       extraData.deleteCount        = extraData.deleteCount + 1
       return
     end
@@ -678,7 +688,8 @@ function internal:CleanOutBad()
   local postfunc = function(extraData)
 
     internal:dm("Info", string.format(GetString(GS_CLEANING_TIME_ELAPSED), GetTimeStamp() - extraData.start))
-    internal:dm("Info", string.format(GetString(GS_CLEANING_BAD_REMOVED), (extraData.badItemLinkCount + extraData.deleteCount) - extraData.moveCount))
+    internal:dm("Info", string.format(GetString(GS_CLEANING_BAD_REMOVED),
+      (extraData.badItemLinkCount + extraData.deleteCount) - extraData.moveCount))
     internal:dm("Info", string.format(GetString(GS_CLEANING_REINDEXED), extraData.moveCount))
     internal:dm("Info", string.format(GetString(GS_CLEANING_WRONG_VERSION), extraData.versionCount))
     internal:dm("Info", string.format(GetString(GS_CLEANING_WRONG_ID), extraData.idCount))
@@ -690,13 +701,13 @@ function internal:CleanOutBad()
     if extraData.deleteCount > 0 then
       internal:dm("Info", GetString(GS_REINDEXING_EVERYTHING))
       --rebuild everything
-      local sr_index = {}
+      local sr_index                 = {}
       _G["LibGuildStore_SalesIndex"] = sr_index
 
-      internal.guildPurchases = {}
-      internal.guildSales     = {}
-      internal.guildItems     = {}
-      internal.myItems        = {}
+      internal.guildPurchases        = {}
+      internal.guildSales            = {}
+      internal.guildItems            = {}
+      internal.myItems               = {}
       LEQ:Add(function() internal:RenewExtraDataAllContainers() end, 'RenewExtraDataAllContainers')
       LEQ:Add(function() internal:InitItemHistory() end, 'InitItemHistory')
       LEQ:Add(function() internal:indexHistoryTables() end, 'indexHistoryTables')
@@ -718,24 +729,24 @@ function internal:CleanOutBad()
 end
 
 local function FinalizePurge(count)
-    local LEQ = LibExecutionQueue:new()
-    if count > 0 then
-      --rebuild everything
-      local sr_index = {}
-      _G["LibGuildStore_SalesIndex"] = sr_index
+  local LEQ = LibExecutionQueue:new()
+  if count > 0 then
+    --rebuild everything
+    local sr_index                 = {}
+    _G["LibGuildStore_SalesIndex"] = sr_index
 
-      internal.guildPurchases = {}
-      internal.guildSales     = {}
-      internal.guildItems     = {}
-      internal.myItems        = {}
-      LEQ:Add(function() internal:InitItemHistory() end, 'InitItemHistory')
-      LEQ:Add(function() internal:indexHistoryTables() end, 'indexHistoryTables')
-    end
-    LEQ:Add(function()
-      internal:DatabaseBusy(false);
-      internal:dm("Info", GetString(GS_REINDEXING_COMPLETE))
-    end, 'LetScanningContinue')
-    LEQ:Start()
+    internal.guildPurchases        = {}
+    internal.guildSales            = {}
+    internal.guildItems            = {}
+    internal.myItems               = {}
+    LEQ:Add(function() internal:InitItemHistory() end, 'InitItemHistory')
+    LEQ:Add(function() internal:indexHistoryTables() end, 'indexHistoryTables')
+  end
+  LEQ:Add(function()
+    internal:DatabaseBusy(false);
+    internal:dm("Info", GetString(GS_REINDEXING_COMPLETE))
+  end, 'LetScanningContinue')
+  LEQ:Start()
 end
 
 function internal:PurgeDups()
@@ -746,9 +757,9 @@ function internal:PurgeDups()
     --task:Then(function(task) internal:dm("Debug", "Database ready") end)
     task:Then(function(task) internal:DatabaseBusy(true) end)
 
-    local start      = GetTimeStamp()
-    local eventArray = { }
-    local count      = 0
+    local start        = GetTimeStamp()
+    local eventArray   = { }
+    local count        = 0
     local newSales
     local deletedSales = { }
 
@@ -761,8 +772,8 @@ function internal:PurgeDups()
           newSales = {}
           task:For(pairs(itemData['sales'])):Do(function(key, checking)
             local currentItemLink = internal:GetStringByIndex(internal.GS_CHECK_ITEMLINK, checking.itemLink)
-            local validLink = internal:IsValidItemLink(currentItemLink)
-            dup             = false
+            local validLink       = internal:IsValidItemLink(currentItemLink)
+            dup                   = false
             if checking.id == nil then
               --[[
               if internal.systemSavedVariables.useLibDebugLogger then
@@ -795,9 +806,10 @@ function internal:PurgeDups()
       end)
     end)
     --task:Then(function(task) internal:dm("Verbose", internal:NonContiguousNonNilCount(eventArray)) end)
-    eventArray = {} -- clear array
+    eventArray                             = {} -- clear array
     GS16DataSavedVariables["deletedSales"] = deletedSales
-    task:Then(function(task) internal:dm("Info", string.format(GetString(GS_DUP_PURGE), GetTimeStamp() - start, count)) end)
+    task:Then(function(task) internal:dm("Info",
+      string.format(GetString(GS_DUP_PURGE), GetTimeStamp() - start, count)) end)
     task:Then(function(task) internal:dm("Info", GetString(GS_REINDEXING_EVERYTHING)) end)
     task:Finally(function(task) FinalizePurge(count) end)
   end
@@ -831,7 +843,9 @@ function internal:SlideSales(goback)
 
   local postfunc = function(extraData)
 
-    internal:dm("Info", string.format(GetString(GS_SLIDING_SUMMARY), GetTimeStamp() - extraData.start, extraData.moveCount, extraData.newName))
+    internal:dm("Info",
+      string.format(GetString(GS_SLIDING_SUMMARY), GetTimeStamp() - extraData.start, extraData.moveCount,
+        extraData.newName))
     sr_index[internal.PlayerSpecialText] = {}
     internal:DatabaseBusy(false)
 
@@ -867,7 +881,8 @@ function internal:ReferenceSales(otherData)
             if first then
               sales_data[itemid][versionid].itemIcon      = GetItemLinkInfo(first.itemLink)
               sales_data[itemid][versionid].itemAdderText = internal:AddSearchToItem(first.itemLink)
-              sales_data[itemid][versionid].itemDesc      = zo_strformat(SI_TOOLTIP_ITEM_NAME, GetItemLinkName(first.itemLink))
+              sales_data[itemid][versionid].itemDesc      = zo_strformat(SI_TOOLTIP_ITEM_NAME,
+                GetItemLinkName(first.itemLink))
             end
           end
         else
@@ -890,7 +905,7 @@ function internal:RenewExtraData(otherData)
         local oldestTime = nil
         local totalCount = 0
         for sale, saleData in pairs(itemIndexData['sales']) do
-          totalCount = totalCount +1
+          totalCount = totalCount + 1
           if oldestTime == nil or oldestTime > saleData.timestamp then oldestTime = saleData.timestamp end
         end
         if savedVars[itemID][field] then
@@ -906,7 +921,7 @@ function internal:RenewExtraData(otherData)
 end
 
 function internal:VerifyItemLinks(hash, task)
-  local saveFile = _G[string.format("GS%02dDataSavedVariables", hash)]
+  local saveFile   = _G[string.format("GS%02dDataSavedVariables", hash)]
   local fileString = string.format("GS%02dDataSavedVariables", hash)
   task:Then(function(task) internal:dm("Debug", string.format("VerifyItemLinks for: %s", fileString)) end)
   task:Then(function(task) internal:dm("Debug", hash) end)
@@ -933,7 +948,7 @@ function internal:AddNewData(otherData)
       local oldestTime = nil
       local totalCount = 0
       for sale, saleData in pairs(itemIndexData['sales']) do
-        totalCount = totalCount +1
+        totalCount = totalCount + 1
         if saleData.timestamp then
           if oldestTime == nil or oldestTime > saleData.timestamp then oldestTime = saleData.timestamp end
         else
